@@ -61,6 +61,17 @@ export function TopBar() {
               <span>{scopeText}</span>
             </div>
             <div className="user-menu-divider" />
+            {officer.tier === 'district' && (
+              <button
+                className="user-menu-item"
+                onClick={() => {
+                  setOpen(false)
+                  navigate('/admin')
+                }}
+              >
+                <Icon name="user" size={14} /> Officer Access
+              </button>
+            )}
             <button
               className="user-menu-item"
               onClick={() => {

@@ -9,7 +9,6 @@ import {
   STATUS_LIST,
   WORKFLOW_STEPS,
   REQUIRED_DOCS,
-  officerIdForEmail,
   officerCanSeeChapterKey,
   officerCanSeeArea,
   getChapter,
@@ -25,13 +24,24 @@ import {
   updateCandidateDoc,
   logAudit,
   ensureReady,
+  countCredentials,
+  getCredentialByOfficerId,
+  getCredentialByEmail,
+  listCredentialsMeta,
+  upsertCredential,
+  recordFailedLogin,
+  resetFailedLogins,
+  setPassword,
 } from './lib/db'
 import { makeCandidate, parseCandidateCSV, buildCSVTemplate } from './lib/candidate-factory'
+import { hashPassword, verifyPassword, randomTempPassword } from './lib/password'
+import { OFFICER_EMAILS, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth'
 
 export type Bindings = {
   DB: D1Database
   UPLOADS: R2Bucket
   SESSION_SECRET?: string
+  AUTH_BOOTSTRAP_SECRET?: string
   ASSETS: Fetcher
 }
 
@@ -43,10 +53,15 @@ function secretOf(env: Bindings): string {
   return env.SESSION_SECRET || 'dev-secret-tcac-intake-do-not-use-in-real-prod'
 }
 
-async function currentOfficer(c: any): Promise<OfficerPublic | null> {
+type SessionOfficer = OfficerPublic & { mustChangePassword?: boolean }
+
+async function currentOfficer(c: any): Promise<SessionOfficer | null> {
   const id = await readSession(c, secretOf(c.env))
   if (!id) return null
-  return OFFICERS[id] || null
+  const officer = OFFICERS[id]
+  if (!officer) return null
+  const cred = await getCredentialByOfficerId(c.env.DB, id)
+  return { ...officer, mustChangePassword: cred ? cred.must_change === 1 : false }
 }
 
 function allowedChapterKeysFor(officer: OfficerPublic | null): string[] | 'all' {
@@ -61,23 +76,36 @@ function allowedChapterKeysFor(officer: OfficerPublic | null): string[] | 'all' 
 // ---------------------------------------------------------------------------
 
 app.post('/api/auth/signin', async (c) => {
-  const body = await c.req.json<{ email?: string }>().catch(() => ({}))
+  const body = await c.req.json<{ email?: string; password?: string }>().catch(() => ({}))
   const email = (body.email || '').trim()
-  const officerId = officerIdForEmail(email)
-  if (!officerId) {
-    return c.json({ error: 'No account found with that email. Try one of the officer email formats below (e.g. escalante@apa-texas.org, tanner@apa-texas.org).' }, 401)
-  }
-  await setSession(c, secretOf(c.env), officerId)
-  return c.json({ officer: OFFICERS[officerId] })
-})
+  const password = body.password || ''
+  const genericError = 'Incorrect email or password.'
+  if (!email || !password) return c.json({ error: genericError }, 401)
 
-// Demo directory quick sign-in (mirrors the design's clickable officer cards).
-app.post('/api/auth/quick-signin', async (c) => {
-  const body = await c.req.json<{ officerId?: string }>().catch(() => ({}))
-  const officer = body.officerId ? OFFICERS[body.officerId] : null
-  if (!officer) return c.json({ error: 'Unknown officer' }, 400)
+  const cred = await getCredentialByEmail(c.env.DB, email)
+  if (!cred) return c.json({ error: genericError }, 401)
+
+  const officer = OFFICERS[cred.officer_id]
+  if (!officer) return c.json({ error: genericError }, 401)
+
+  if (cred.locked_until && new Date(cred.locked_until).getTime() > Date.now()) {
+    const minutesLeft = Math.ceil((new Date(cred.locked_until).getTime() - Date.now()) / 60_000)
+    return c.json({ error: `Too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft === 1 ? '' : 's'}.` }, 423)
+  }
+
+  const ok = await verifyPassword(password, cred.password_hash, cred.password_salt, cred.iterations)
+  if (!ok) {
+    await recordFailedLogin(c.env.DB, cred.officer_id, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES)
+    const remaining = Math.max(0, MAX_LOGIN_ATTEMPTS - (cred.failed_attempts + 1))
+    if (remaining <= 0) {
+      return c.json({ error: `Too many failed attempts. Account locked for ${LOCKOUT_MINUTES} minutes.` }, 423)
+    }
+    return c.json({ error: `${genericError} ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before lockout.` }, 401)
+  }
+
+  await resetFailedLogins(c.env.DB, cred.officer_id)
   await setSession(c, secretOf(c.env), officer.id)
-  return c.json({ officer })
+  return c.json({ officer: { ...officer, mustChangePassword: cred.must_change === 1 } })
 })
 
 app.post('/api/auth/signout', async (c) => {
@@ -96,6 +124,121 @@ function requireOfficer(c: any, officer: OfficerPublic | null) {
   }
   return null
 }
+
+// Change own password — used both for the voluntary "change password" action
+// and the forced first-login flow (must_change=1 after admin reset/bootstrap).
+app.post('/api/auth/change-password', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireOfficer(c, officer)
+  if (denied) return denied
+
+  const body = await c.req.json<{ currentPassword?: string; newPassword?: string }>().catch(() => ({}))
+  const currentPassword = body.currentPassword || ''
+  const newPassword = body.newPassword || ''
+
+  const cred = await getCredentialByOfficerId(c.env.DB, officer!.id)
+  if (!cred) return c.json({ error: 'No credential record found for this officer.' }, 400)
+
+  const ok = await verifyPassword(currentPassword, cred.password_hash, cred.password_salt, cred.iterations)
+  if (!ok) return c.json({ error: 'Current password is incorrect.' }, 401)
+
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    return c.json({ error: `New password must be at least ${MIN_PASSWORD_LENGTH} characters.` }, 422)
+  }
+  if (newPassword === currentPassword) {
+    return c.json({ error: 'New password must be different from your current password.' }, 422)
+  }
+
+  const { hash, salt, iterations } = await hashPassword(newPassword)
+  await setPassword(c.env.DB, officer!.id, hash, salt, iterations, false)
+  return c.json({ ok: true })
+})
+
+// ---------------------------------------------------------------------------
+// District-tier admin: officer directory + password resets
+// ---------------------------------------------------------------------------
+// Since there's no email/SSO service wired up, District Director / Chief
+// Dean of Membership Intake / Chief Administrator can generate a one-time
+// temp password for any officer here and relay it to them out of band
+// (phone/text/in person). The officer is forced to change it on next login.
+
+function requireDistrictTier(c: any, officer: OfficerPublic | null) {
+  if (!officer) return c.json({ error: 'Not signed in' }, 401)
+  if (officer.tier !== 'district') return c.json({ error: 'District-tier officers only.' }, 403)
+  return null
+}
+
+app.get('/api/auth/admin/officers', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireDistrictTier(c, officer)
+  if (denied) return denied
+
+  const metas = await listCredentialsMeta(c.env.DB)
+  const byId = new Map(metas.map((m) => [m.officer_id, m]))
+  const rows = Object.values(OFFICERS).map((o) => {
+    const meta = byId.get(o.id)
+    return {
+      officer: o,
+      email: meta?.email || OFFICER_EMAILS[o.id] || null,
+      hasCredential: !!meta,
+      mustChangePassword: meta ? meta.must_change === 1 : false,
+      lockedUntil: meta?.locked_until || null,
+      failedAttempts: meta?.failed_attempts || 0,
+    }
+  })
+  return c.json({ rows })
+})
+
+app.post('/api/auth/admin/reset-password', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireDistrictTier(c, officer)
+  if (denied) return denied
+
+  const body = await c.req.json<{ officerId?: string }>().catch(() => ({}))
+  const targetId = body.officerId || ''
+  const target = OFFICERS[targetId]
+  if (!target) return c.json({ error: 'Unknown officer' }, 400)
+
+  const email = OFFICER_EMAILS[targetId]
+  if (!email) return c.json({ error: 'No login email is configured for that officer.' }, 400)
+
+  const tempPassword = randomTempPassword()
+  const { hash, salt, iterations } = await hashPassword(tempPassword)
+  await upsertCredential(c.env.DB, targetId, email, hash, salt, iterations, true)
+  await logAudit(c.env.DB, 'system', officer!.id, 'password_reset', `${officer!.name} reset the password for ${target.name}`)
+
+  return c.json({ officerId: targetId, email, tempPassword })
+})
+
+// One-time bootstrap: seeds a temp password for every officer that doesn't
+// yet have a credential row. Self-disables once every officer has one, and
+// always requires AUTH_BOOTSTRAP_SECRET (a Worker secret, set out of band —
+// never checked into wrangler.jsonc) so it can't be replayed by the public.
+app.post('/api/auth/bootstrap', async (c) => {
+  const configured = c.env.AUTH_BOOTSTRAP_SECRET
+  if (!configured) return c.json({ error: 'Bootstrap is not enabled on this deployment.' }, 403)
+
+  const body = await c.req.json<{ secret?: string }>().catch(() => ({}))
+  if (body.secret !== configured) return c.json({ error: 'Invalid bootstrap secret.' }, 403)
+
+  const existing = await listCredentialsMeta(c.env.DB)
+  const existingIds = new Set(existing.map((m) => m.officer_id))
+  const toSeed = Object.values(OFFICERS).filter((o) => !existingIds.has(o.id))
+  if (toSeed.length === 0) {
+    return c.json({ error: 'All officers already have credentials. Use /api/auth/admin/reset-password instead.' }, 409)
+  }
+
+  const results: { officerId: string; name: string; email: string; tempPassword: string }[] = []
+  for (const o of toSeed) {
+    const email = OFFICER_EMAILS[o.id]
+    if (!email) continue
+    const tempPassword = randomTempPassword()
+    const { hash, salt, iterations } = await hashPassword(tempPassword)
+    await upsertCredential(c.env.DB, o.id, email, hash, salt, iterations, true)
+    results.push({ officerId: o.id, name: o.name, email, tempPassword })
+  }
+  return c.json({ seeded: results.length, officers: results })
+})
 
 // ---------------------------------------------------------------------------
 // Reference data

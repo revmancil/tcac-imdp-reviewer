@@ -152,18 +152,6 @@ export const OFFICERS: Record<string, OfficerPublic> = {
   'ad-4051': { id: 'ad-4051', name: 'Bro. Area Director', title: 'Area Director', area: 4051, initials: 'AD', scope: [4051], tier: 'area' },
 };
 
-// Demo credential mapping — lastname@apa-texas.org. In production this is
-// replaced entirely by the district's SSO / email-authentication provider
-// (see README "Implementation Notes" / Auth & access control).
-export function officerIdForEmail(email: string): string | null {
-  const norm = email.trim().toLowerCase();
-  for (const o of Object.values(OFFICERS)) {
-    const last = o.name.replace('Bro. ', '').split(' ').slice(-1)[0].toLowerCase();
-    if (`${last}@apa-texas.org` === norm) return o.id;
-  }
-  return null;
-}
-
 export function officerCanSeeArea(officer: OfficerPublic | null | undefined, area: number): boolean {
   if (!officer) return true;
   if (officer.scope === 'all') return true;

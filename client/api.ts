@@ -1,5 +1,5 @@
 // Thin fetch wrapper for the TCAC Intake Review API.
-import type { Candidate, OfficerPublic, ReferenceData } from '../shared/types'
+import type { AdminOfficerRow, Candidate, OfficerPublic, ReferenceData } from '../shared/types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -22,9 +22,14 @@ export const api = {
   reference: () => req<ReferenceData>('/api/reference'),
 
   me: () => req<{ officer: OfficerPublic | null }>('/api/auth/me'),
-  signIn: (email: string) => req<{ officer: OfficerPublic }>('/api/auth/signin', { method: 'POST', body: JSON.stringify({ email }) }),
-  quickSignIn: (officerId: string) => req<{ officer: OfficerPublic }>('/api/auth/quick-signin', { method: 'POST', body: JSON.stringify({ officerId }) }),
+  signIn: (email: string, password: string) => req<{ officer: OfficerPublic }>('/api/auth/signin', { method: 'POST', body: JSON.stringify({ email, password }) }),
   signOut: () => req<{ ok: true }>('/api/auth/signout', { method: 'POST' }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    req<{ ok: true }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
+
+  adminListOfficers: () => req<{ rows: AdminOfficerRow[] }>('/api/auth/admin/officers'),
+  adminResetPassword: (officerId: string) =>
+    req<{ officerId: string; email: string; tempPassword: string }>('/api/auth/admin/reset-password', { method: 'POST', body: JSON.stringify({ officerId }) }),
 
   listCandidates: (params: Record<string, string | undefined>) => {
     const qs = new URLSearchParams()

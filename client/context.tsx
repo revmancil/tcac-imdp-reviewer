@@ -6,9 +6,10 @@ interface AppState {
   officer: OfficerPublic | null
   reference: ReferenceData | null
   loading: boolean
-  signIn: (email: string) => Promise<OfficerPublic>
-  quickSignIn: (officerId: string) => Promise<OfficerPublic>
+  signIn: (email: string, password: string) => Promise<OfficerPublic>
   signOut: () => Promise<void>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>
+  clearMustChangePassword: () => void
 }
 
 const Ctx = createContext<AppState | null>(null)
@@ -30,14 +31,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })()
   }, [])
 
-  const signIn = useCallback(async (email: string) => {
-    const { officer } = await api.signIn(email)
-    setOfficer(officer)
-    return officer
-  }, [])
-
-  const quickSignIn = useCallback(async (officerId: string) => {
-    const { officer } = await api.quickSignIn(officerId)
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { officer } = await api.signIn(email, password)
     setOfficer(officer)
     return officer
   }, [])
@@ -47,7 +42,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setOfficer(null)
   }, [])
 
-  return <Ctx.Provider value={{ officer, reference, loading, signIn, quickSignIn, signOut }}>{children}</Ctx.Provider>
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await api.changePassword(currentPassword, newPassword)
+    setOfficer((o) => (o ? { ...o, mustChangePassword: false } : o))
+  }, [])
+
+  const clearMustChangePassword = useCallback(() => {
+    setOfficer((o) => (o ? { ...o, mustChangePassword: false } : o))
+  }, [])
+
+  return (
+    <Ctx.Provider value={{ officer, reference, loading, signIn, signOut, changePassword, clearMustChangePassword }}>
+      {children}
+    </Ctx.Provider>
+  )
 }
 
 export function useApp(): AppState {

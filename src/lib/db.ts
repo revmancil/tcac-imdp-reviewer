@@ -34,6 +34,18 @@ CREATE TABLE IF NOT EXISTS audit_log (
   detail        TEXT,
   created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS officer_credentials (
+  officer_id       TEXT PRIMARY KEY,
+  email            TEXT UNIQUE NOT NULL,
+  password_hash    TEXT NOT NULL,
+  password_salt    TEXT NOT NULL,
+  iterations       INTEGER NOT NULL DEFAULT 100000,
+  failed_attempts  INTEGER NOT NULL DEFAULT 0,
+  locked_until     TEXT,
+  must_change      INTEGER NOT NULL DEFAULT 1,
+  updated_at       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_officer_credentials_email ON officer_credentials(email);
 `;
 
 let schemaReady = false;
@@ -207,4 +219,108 @@ export async function logAudit(db: D1Database, candidateId: string, officerId: s
 export async function missingReport(db: D1Database, allowedChapterKeys: string[] | 'all') {
   const list = await listCandidates(db, { allowedChapterKeys, sort: 'id' });
   return list;
+}
+
+// ---------------------------------------------------------------------------
+// Officer credentials (real password auth — see src/lib/password.ts)
+// ---------------------------------------------------------------------------
+
+export interface OfficerCredentialRow {
+  officer_id: string;
+  email: string;
+  password_hash: string;
+  password_salt: string;
+  iterations: number;
+  failed_attempts: number;
+  locked_until: string | null;
+  must_change: number;
+  updated_at: string;
+}
+
+export async function countCredentials(db: D1Database): Promise<number> {
+  await ensureReady(db);
+  const row = await db.prepare('SELECT COUNT(*) AS n FROM officer_credentials').first<{ n: number }>();
+  return row?.n || 0;
+}
+
+export async function getCredentialByOfficerId(db: D1Database, officerId: string): Promise<OfficerCredentialRow | null> {
+  await ensureReady(db);
+  const row = await db.prepare('SELECT * FROM officer_credentials WHERE officer_id = ?').bind(officerId).first<OfficerCredentialRow>();
+  return row || null;
+}
+
+export async function getCredentialByEmail(db: D1Database, email: string): Promise<OfficerCredentialRow | null> {
+  await ensureReady(db);
+  const row = await db.prepare('SELECT * FROM officer_credentials WHERE LOWER(email) = LOWER(?)').bind(email.trim()).first<OfficerCredentialRow>();
+  return row || null;
+}
+
+export async function listCredentialsMeta(db: D1Database): Promise<Omit<OfficerCredentialRow, 'password_hash' | 'password_salt'>[]> {
+  await ensureReady(db);
+  const { results } = await db
+    .prepare('SELECT officer_id, email, iterations, failed_attempts, locked_until, must_change, updated_at FROM officer_credentials')
+    .all<Omit<OfficerCredentialRow, 'password_hash' | 'password_salt'>>();
+  return results || [];
+}
+
+export async function upsertCredential(
+  db: D1Database,
+  officerId: string,
+  email: string,
+  hash: string,
+  salt: string,
+  iterations: number,
+  mustChange: boolean
+): Promise<void> {
+  await ensureReady(db);
+  await db
+    .prepare(
+      `INSERT INTO officer_credentials (officer_id, email, password_hash, password_salt, iterations, failed_attempts, locked_until, must_change, updated_at)
+       VALUES (?, ?, ?, ?, ?, 0, NULL, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(officer_id) DO UPDATE SET
+         email = excluded.email,
+         password_hash = excluded.password_hash,
+         password_salt = excluded.password_salt,
+         iterations = excluded.iterations,
+         failed_attempts = 0,
+         locked_until = NULL,
+         must_change = excluded.must_change,
+         updated_at = CURRENT_TIMESTAMP`
+    )
+    .bind(officerId, email.trim(), hash, salt, iterations, mustChange ? 1 : 0)
+    .run();
+}
+
+export async function recordFailedLogin(db: D1Database, officerId: string, maxAttempts: number, lockoutMinutes: number): Promise<void> {
+  await ensureReady(db);
+  const row = await getCredentialByOfficerId(db, officerId);
+  if (!row) return;
+  const attempts = row.failed_attempts + 1;
+  const lockUntil = attempts >= maxAttempts
+    ? new Date(Date.now() + lockoutMinutes * 60_000).toISOString()
+    : null;
+  await db
+    .prepare('UPDATE officer_credentials SET failed_attempts = ?, locked_until = ?, updated_at = CURRENT_TIMESTAMP WHERE officer_id = ?')
+    .bind(attempts, lockUntil, officerId)
+    .run();
+}
+
+export async function resetFailedLogins(db: D1Database, officerId: string): Promise<void> {
+  await ensureReady(db);
+  await db
+    .prepare('UPDATE officer_credentials SET failed_attempts = 0, locked_until = NULL, updated_at = CURRENT_TIMESTAMP WHERE officer_id = ?')
+    .bind(officerId)
+    .run();
+}
+
+export async function setPassword(db: D1Database, officerId: string, hash: string, salt: string, iterations: number, mustChange: boolean): Promise<void> {
+  await ensureReady(db);
+  await db
+    .prepare(
+      `UPDATE officer_credentials
+       SET password_hash = ?, password_salt = ?, iterations = ?, must_change = ?, failed_attempts = 0, locked_until = NULL, updated_at = CURRENT_TIMESTAMP
+       WHERE officer_id = ?`
+    )
+    .bind(hash, salt, iterations, mustChange ? 1 : 0, officerId)
+    .run();
 }

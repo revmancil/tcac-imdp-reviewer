@@ -51,11 +51,22 @@ static TS in `shared/reference.ts` — matches the handoff's `CHAPTERS`/`OFFICER
 
 ## Known gaps / next steps (see handoff README "Implementation Notes")
 
-- **Auth is demo-level**: sign-in matches `lastname@apa-texas.org` (no password check) and the officer-card quick sign-in is a design-time affordance. Production must replace this with TCAC's real SSO / email-authentication provider — the signed-cookie session plumbing (`src/lib/session.ts`) is there to slot a real identity provider behind.
 - **Audit trail** table exists (`audit_log`) but there's no UI to view it yet.
 - Reviewer notes / "Mark Complete" / "Request Docs" buttons are visual only (not wired to persistence) — same as the original design prototype.
 - CSV export and "Send Reminders" on the Missing Items report are visual only.
 - The "Modern Brotherhood" visual variant and the Tweaks panel from the design were intentionally **not** shipped (per the handoff README: Classic Collegiate is the shipping variant; the tweaks panel is a design-time affordance to strip).
+
+## Auth & access control
+
+Real password auth, self-contained in this stack (D1 + Web Crypto) — no
+third-party identity provider required:
+
+- **Password storage**: PBKDF2-SHA256, 100k iterations, random 16-byte salt per officer (`src/lib/password.ts`). No plaintext or reversibly-encrypted passwords anywhere.
+- **Brute-force protection**: 5 failed attempts locks the account for 15 minutes (`MAX_LOGIN_ATTEMPTS` / `LOCKOUT_MINUTES` in `src/lib/auth.ts`); a locked account is rejected even with the correct password until the lock expires.
+- **First login / admin reset**: officers don't self-register. A district-tier officer (District Director / Chief Dean of Membership Intake / Chief Administrator) opens **Officer Access** (`/admin`, linked from the user menu) and clicks "Reset Password" / "Issue Password" for any officer — this generates a random 12-character temp password shown once on screen. The admin relays it to the officer out of band (phone/text/in person); there's no email service wired up to send it automatically. The officer is forced into a "Set a New Password" modal on next sign-in and can't dismiss it or use the app until they set their own password (min 10 characters).
+- **Session**: unchanged from before — signed HMAC-SHA256 httpOnly cookie (`src/lib/session.ts`), 14-day expiry. Only the credential-verification step upstream of it changed.
+- **First-time production setup**: since officers start with no credentials at all, there's a one-time `POST /api/auth/bootstrap {secret}` endpoint that seeds a temp password for every officer that doesn't have one yet. It requires the `AUTH_BOOTSTRAP_SECRET` Worker secret (set via `gsk hosted secret_put --name AUTH_BOOTSTRAP_SECRET --value "$(openssl rand -hex 24)"` — **not** set by default in this deployment) and refuses to run once every officer already has a credential row (use the admin reset screen instead after that point). After bootstrapping, relay each returned temp password to its officer, then consider rotating/removing the `AUTH_BOOTSTRAP_SECRET` since it's no longer needed.
+- **Login emails**: server-only, in `src/lib/auth.ts` (`OFFICER_EMAILS`) — never bundled into the client. Keyed by officer id (not derived from surname), so officers sharing a surname get distinct logins.
 
 ## Local development
 
@@ -74,9 +85,10 @@ curl http://localhost:3000
 - **D1 database**: `748be431-d2a8-4adb-aa1c-712c30df8a2a-db` (managed; migrations applied automatically from `migrations/`)
 - **R2 bucket**: `748be431-d2a8-4adb-aa1c-712c30df8a2a-r2` (managed; stores uploaded candidate documents)
 - **`SESSION_SECRET`**: set as an encrypted Worker secret via `gsk hosted secret_put` (not checked into `wrangler.jsonc`/git — the checked-in code only has a dev-only fallback for local `pm2`/`wrangler pages dev`).
+- **Officer credentials**: no officer has a password yet on a fresh deploy. Bootstrap once via `AUTH_BOOTSTRAP_SECRET` — see "Auth & access control" above — then relay each temp password to its officer out of band.
 
-To redeploy after future code changes: `npm run build` locally to confirm it compiles, commit, then run `gsk hosted deploy` and approve the resulting pending action in the sandbox UI. If a redeploy ever needs the secret re-set (rare — bindings usually persist), re-run `gsk hosted secret_put --name SESSION_SECRET --value "$(openssl rand -hex 32)"`.
+To redeploy after future code changes: `npm run build` locally to confirm it compiles, commit, then run `gsk hosted deploy` and approve the resulting pending action in the sandbox UI. If a redeploy ever needs a secret re-set (rare — bindings usually persist), re-run `gsk hosted secret_put --name SESSION_SECRET --value "$(openssl rand -hex 32)"` (and/or the `AUTH_BOOTSTRAP_SECRET` equivalent).
 
 ### Known gaps for real production use
-- Officer "sign-in" is a **demo shortcut** (email match against a hardcoded directory, or one-click officer cards) — no real password/SSO. Before handing this to real TCAC officers, wire `/api/auth/signin` to the district's actual SSO/email-authentication provider and remove the quick-signin officer-card list from `/signin`.
-- No rate limiting / audit-log UI yet (the `audit_log` D1 table is populated on writes but not surfaced in the app).
+- Officer sign-in is now real password auth (hashed+salted, lockout, forced first-change — see "Auth & access control"), but there's no SSO/email-authentication provider integration and no automated email delivery for temp passwords — resets are relayed by a district-tier officer out of band. The "Sign in with Alpha Member Portal" button on `/signin` is still a disabled placeholder.
+- No rate limiting beyond per-account lockout / audit-log UI yet (the `audit_log` D1 table is populated on writes but not surfaced in the app).

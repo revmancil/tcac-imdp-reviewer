@@ -22,6 +22,19 @@ export interface OfficerPublic {
   area?: number;
   tier: 'district' | 'area';
   scope: 'all' | number[];
+  // Only present on the signed-in session officer (set by /api/auth/*),
+  // never in the /api/reference officer directory.
+  mustChangePassword?: boolean;
+}
+
+// Row shape returned by /api/auth/admin/officers (district-tier only).
+export interface AdminOfficerRow {
+  officer: OfficerPublic;
+  email: string | null;
+  hasCredential: boolean;
+  mustChangePassword: boolean;
+  lockedUntil: string | null;
+  failedAttempts: number;
 }
 
 export type StatusKey = 'received' | 'review' | 'missing' | 'complete' | 'cleared';
