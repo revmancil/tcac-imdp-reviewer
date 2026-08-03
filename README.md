@@ -67,8 +67,16 @@ curl http://localhost:3000
 
 ## Deployment
 
-Not yet deployed. Before deploying to Cloudflare:
-1. `npx wrangler d1 create webapp-production` and put the returned `database_id` into `wrangler.jsonc`.
-2. `npx wrangler r2 bucket create webapp-uploads`.
-3. Set a real `SESSION_SECRET` (`wrangler pages secret put SESSION_SECRET` or via the Deploy panel) instead of the checked-in dev default.
-4. `npm run build && wrangler pages deploy dist`.
+**Status: ✅ Live** — deployed to Cloudflare Workers for Platform via Genspark Hosted Deploy.
+
+- **Production URL**: https://748be431-d2a8-4adb-aa1c-712c30df8a2a.vip.gensparksite.com
+- **Worker**: `748be431-d2a8-4adb-aa1c-712c30df8a2a`
+- **D1 database**: `748be431-d2a8-4adb-aa1c-712c30df8a2a-db` (managed; migrations applied automatically from `migrations/`)
+- **R2 bucket**: `748be431-d2a8-4adb-aa1c-712c30df8a2a-r2` (managed; stores uploaded candidate documents)
+- **`SESSION_SECRET`**: set as an encrypted Worker secret via `gsk hosted secret_put` (not checked into `wrangler.jsonc`/git — the checked-in code only has a dev-only fallback for local `pm2`/`wrangler pages dev`).
+
+To redeploy after future code changes: `npm run build` locally to confirm it compiles, commit, then run `gsk hosted deploy` and approve the resulting pending action in the sandbox UI. If a redeploy ever needs the secret re-set (rare — bindings usually persist), re-run `gsk hosted secret_put --name SESSION_SECRET --value "$(openssl rand -hex 32)"`.
+
+### Known gaps for real production use
+- Officer "sign-in" is a **demo shortcut** (email match against a hardcoded directory, or one-click officer cards) — no real password/SSO. Before handing this to real TCAC officers, wire `/api/auth/signin` to the district's actual SSO/email-authentication provider and remove the quick-signin officer-card list from `/signin`.
+- No rate limiting / audit-log UI yet (the `audit_log` D1 table is populated on writes but not surfaced in the app).
