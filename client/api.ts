@@ -1,4 +1,4 @@
-// Thin fetch wrapper for the Texas District Intake Review API.
+// Thin fetch wrapper for the TCAC Intake Review API.
 import type { Candidate, OfficerPublic, ReferenceData } from '../shared/types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {

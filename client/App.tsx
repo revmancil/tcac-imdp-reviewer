@@ -12,7 +12,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell v-classic">
       <div className="demo-banner">
-        <b>Texas District · Rho Nu Lambda</b> · Candidate <b>#2897040 (Nazhir Carter)</b> uses real submitted PDFs. Sponsor /
+        <b>TCAC · Rho Nu Lambda</b> · Candidate <b>#2897040 (Nazhir Carter)</b> uses real submitted PDFs. Sponsor /
         Recommender letters are embedded in the application. Every doc supports upload / replace.
       </div>
       <TopBar />
@@ -25,7 +25,7 @@ export default function App() {
   const { officer, loading } = useApp()
 
   if (loading) {
-    return <div className="app-loading">Loading Texas District Intake Review…</div>
+    return <div className="app-loading">Loading TCAC Intake Review…</div>
   }
 
   if (!officer) {

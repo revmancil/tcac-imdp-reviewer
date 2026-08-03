@@ -27,7 +27,7 @@ export function TopBar() {
       <div className="topbar-brand">
         <ShieldMark size={26} />
         <div>
-          <div className="topbar-app">Texas District Intake</div>
+          <div className="topbar-app">TCAC Intake</div>
           <div className="topbar-sub">Cycle 2026 · Southwestern Region</div>
         </div>
       </div>

@@ -1,4 +1,4 @@
--- Texas District Intake Review Tool — initial schema.
+-- TCAC (Texas Council of Alpha Chapters) Intake Review Tool — initial schema.
 -- Candidate documents/workflow/sponsor/recommender/checks are stored as a
 -- JSON blob in `data` (see shared/types.ts Candidate interface) while the
 -- columns used for roster filtering/sorting are promoted for SQL querying.

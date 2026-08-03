@@ -40,7 +40,7 @@ const app = new Hono<{ Bindings: Bindings }>()
 app.use('/api/*', cors())
 
 function secretOf(env: Bindings): string {
-  return env.SESSION_SECRET || 'dev-secret-texas-district-intake-do-not-use-in-real-prod'
+  return env.SESSION_SECRET || 'dev-secret-tcac-intake-do-not-use-in-real-prod'
 }
 
 async function currentOfficer(c: any): Promise<OfficerPublic | null> {

@@ -1,8 +1,8 @@
-# Texas District Intake Membership Review Tool
+# TCAC Intake Membership Review Tool
 
-Alpha Phi Alpha Fraternity, Inc. — Southwestern Region · Texas District.
-An internal workflow app for district officers to review candidate
-membership applications for the current intake cycle. Built from a
+Alpha Phi Alpha Fraternity, Inc. — Southwestern Region · Texas Council of
+Alpha Chapters (TCAC). An internal workflow app for TCAC officers to review
+candidate membership applications for the current intake cycle. Built from a
 Genspark Design handoff (`designer2-4dcc78be-8f9a-4836-8b4c-6ec1aa3b8e54`,
 folder `design_handoff_intake_review/`), recreated as a production-shaped
 Hono + Cloudflare Pages app (D1 + R2) instead of the original static HTML
@@ -51,7 +51,7 @@ static TS in `shared/reference.ts` — matches the handoff's `CHAPTERS`/`OFFICER
 
 ## Known gaps / next steps (see handoff README "Implementation Notes")
 
-- **Auth is demo-level**: sign-in matches `lastname@apa-texas.org` (no password check) and the officer-card quick sign-in is a design-time affordance. Production must replace this with the district's real SSO / email-authentication provider — the signed-cookie session plumbing (`src/lib/session.ts`) is there to slot a real identity provider behind.
+- **Auth is demo-level**: sign-in matches `lastname@apa-texas.org` (no password check) and the officer-card quick sign-in is a design-time affordance. Production must replace this with TCAC's real SSO / email-authentication provider — the signed-cookie session plumbing (`src/lib/session.ts`) is there to slot a real identity provider behind.
 - **Audit trail** table exists (`audit_log`) but there's no UI to view it yet.
 - Reviewer notes / "Mark Complete" / "Request Docs" buttons are visual only (not wired to persistence) — same as the original design prototype.
 - CSV export and "Send Reminders" on the Missing Items report are visual only.

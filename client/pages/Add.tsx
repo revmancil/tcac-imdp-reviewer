@@ -19,7 +19,7 @@ export default function Add() {
 
       <div className="add-hero">
         <div>
-          <div className="eyebrow">Texas District · Intake Committee</div>
+          <div className="eyebrow">TCAC · Intake Committee</div>
           <h1 className="add-title">Add Candidate to Intake</h1>
           <div className="add-sub">Enter one candidate manually or upload a CSV to onboard a full line at once. Uploaded documents can be attached after the record is created.</div>
         </div>
@@ -173,7 +173,7 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
       <div className="add-form-section">
         <div className="add-form-section-head">
           <div className="add-form-section-num">2</div>
-          <div><div className="add-form-section-title">Chapter Selection</div><div className="add-form-section-sub">Which Texas District chapter is the candidate applying to?</div></div>
+          <div><div className="add-form-section-title">Chapter Selection</div><div className="add-form-section-sub">Which TCAC chapter is the candidate applying to?</div></div>
         </div>
         <div className="add-form-grid">
           <FormField label="Chapter" required error={errors.chapterKey} span={4}>

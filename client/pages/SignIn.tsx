@@ -45,7 +45,7 @@ export default function SignIn() {
       <div className="signin-container">
         <div className="signin-brand">
           <ShieldMark size={80} />
-          <div className="signin-brand-district">Texas District</div>
+          <div className="signin-brand-district">Texas Council of<br />Alpha Chapters</div>
           <div className="signin-brand-org">ALPHA PHI ALPHA</div>
           <div className="signin-brand-org">FRATERNITY, INC.</div>
           <div className="signin-brand-founded">Founded 1906 · Cornell University</div>
@@ -60,7 +60,7 @@ export default function SignIn() {
           <div className="signin-header">
             <div className="signin-eyebrow">Officer Sign-In</div>
             <h1 className="signin-title">Welcome, Brother</h1>
-            <div className="signin-sub">Sign in with your Texas District officer credentials to access the intake review tool.</div>
+            <div className="signin-sub">Sign in with your TCAC officer credentials to access the intake review tool.</div>
           </div>
 
           <form className="signin-form" onSubmit={handleSubmit}>
@@ -102,7 +102,7 @@ export default function SignIn() {
           </form>
 
           <div className="signin-directory">
-            <div className="signin-directory-title">Texas District Intake Committee</div>
+            <div className="signin-directory-title">TCAC Intake Committee</div>
             <div className="signin-directory-sub">Click any officer below to sign in as them (prototype demonstration).</div>
 
             <div className="signin-tier-label">District Officers · All Areas</div>

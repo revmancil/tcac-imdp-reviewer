@@ -1,4 +1,4 @@
-// Reference data for the Texas District Intake Review Tool.
+// Reference data for the TCAC (Texas Council of Alpha Chapters) Intake Review Tool.
 // Ported from the design handoff's data.jsx — chapters, officers, district,
 // required docs, workflow steps, and the status enum. This is data that
 // rarely changes and is loaded once by the client (see README.md).
@@ -113,7 +113,7 @@ export const CHAPTERS: Record<string, Chapter> = {
 };
 
 export const DISTRICT = {
-  name: 'Texas',
+  name: 'Texas Council of Alpha Chapters',
   region: 'Southwestern',
   areaNames: {
     '4041': 'Area 4041 · Dallas / Metroplex',
@@ -177,7 +177,7 @@ export function officerCanSeeChapterKey(officer: OfficerPublic | null | undefine
 }
 
 export function officerScopeLabel(officer: OfficerPublic): string {
-  if (officer.scope === 'all') return 'All Texas District Areas';
+  if (officer.scope === 'all') return 'All TCAC Areas';
   return officer.scope.map((a) => `Area ${a}`).join(' · ');
 }
 

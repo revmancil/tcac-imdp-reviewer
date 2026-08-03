@@ -1,4 +1,4 @@
-// D1 data access layer for the Texas District Intake Review Tool.
+// D1 data access layer for the TCAC (Texas Council of Alpha Chapters) Intake Review Tool.
 // Candidates are stored with a few promoted columns (for SQL filter/sort)
 // plus a JSON `data` blob holding the nested docs/workflow/sponsor/etc.
 // shape described in shared/types.ts. See migrations/0001_initial_schema.sql.

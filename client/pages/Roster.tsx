@@ -96,7 +96,7 @@ export default function Roster() {
             <ShieldMark size={56} />
             <div>
               <div className="eyebrow">ΑΛΦΑ ΦΙ ΑΛΦΑ · Founded 1906 · Cornell University</div>
-              <h1 className="banner-title">Texas District — Intake Review</h1>
+              <h1 className="banner-title">Texas Council of Alpha Chapters — Intake Review</h1>
               <div className="banner-sub">Southwestern Region · Cycle 2026 · Bro. Adrian Escalante, District Director</div>
             </div>
           </div>

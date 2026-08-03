@@ -67,7 +67,7 @@ export default function Missing() {
           <div className="eyebrow">Cycle Report</div>
           <h1 className="missing-title">Outstanding Items</h1>
           <div className="missing-sub">
-            {stats.totalItems} outstanding item{stats.totalItems === 1 ? '' : 's'} across {stats.affectedCandidates} candidate{stats.affectedCandidates === 1 ? '' : 's'} in the Texas District. Send batch reminders or work through candidates individually.
+            {stats.totalItems} outstanding item{stats.totalItems === 1 ? '' : 's'} across {stats.affectedCandidates} candidate{stats.affectedCandidates === 1 ? '' : 's'} in TCAC. Send batch reminders or work through candidates individually.
           </div>
         </div>
         <div className="missing-actions">

@@ -288,7 +288,7 @@ export function DocContent({ docKey, candidate, chapter }: { docKey: string; can
             <tbody>
               <tr><td>General Organization Fee</td><td>$525.00</td></tr>
               <tr><td>Southwestern Region Assessment</td><td>$185.00</td></tr>
-              <tr><td>Texas District Assessment</td><td>$95.00</td></tr>
+              <tr><td>TCAC Assessment</td><td>$95.00</td></tr>
               <tr><td>Chapter Intake Fee</td><td>{chapter.type === 'alumni' ? '$550.00' : '$450.00'}</td></tr>
               <tr><td>First-Year Dues (prorated)</td><td>$240.00</td></tr>
               <tr className="fee-total"><td>Total Due Upon Selection</td><td>{chapter.type === 'alumni' ? '$1,595.00' : '$1,495.00'}</td></tr>
