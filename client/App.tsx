@@ -1,0 +1,54 @@
+import React from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { TopBar } from './components/TopBar'
+import { useApp } from './context'
+import SignIn from './pages/SignIn'
+import Roster from './pages/Roster'
+import Detail from './pages/Detail'
+import Missing from './pages/Missing'
+import Add from './pages/Add'
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="app-shell v-classic">
+      <div className="demo-banner">
+        <b>Texas District · Rho Nu Lambda</b> · Candidate <b>#2897040 (Nazhir Carter)</b> uses real submitted PDFs. Sponsor /
+        Recommender letters are embedded in the application. Every doc supports upload / replace.
+      </div>
+      <TopBar />
+      {children}
+    </div>
+  )
+}
+
+export default function App() {
+  const { officer, loading } = useApp()
+
+  if (loading) {
+    return <div className="app-loading">Loading Texas District Intake Review…</div>
+  }
+
+  if (!officer) {
+    return (
+      <div className="v-classic">
+        <Routes>
+          <Route path="*" element={<SignIn />} />
+        </Routes>
+      </div>
+    )
+  }
+
+  return (
+    <Shell>
+      <Routes>
+        <Route path="/" element={<Navigate to="/roster" replace />} />
+        <Route path="/signin" element={<Navigate to="/roster" replace />} />
+        <Route path="/roster" element={<Roster />} />
+        <Route path="/candidates/:id" element={<Detail />} />
+        <Route path="/missing" element={<Missing />} />
+        <Route path="/add" element={<Add />} />
+        <Route path="*" element={<Navigate to="/roster" replace />} />
+      </Routes>
+    </Shell>
+  )
+}
