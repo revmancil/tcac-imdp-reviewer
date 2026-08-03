@@ -132,24 +132,56 @@ export const DISTRICT = {
 
 // Officers + role-based access. `scope: 'all'` => sees every area.
 // `scope: [4041]` => sees only that area's candidates.
+//
+// Bro. William Bernard holds both the district-wide "Chief Dean of Membership
+// Intake" seat AND the Area 2 (4042) Area Director / Chief Dean seat. Since
+// his district account already has scope: 'all' (covers every area,
+// including 4042), he is intentionally NOT given a second area-scoped login —
+// unlike the tanner-4041 / carroll-4041 split, a second row would need a
+// distinct email, and he uses one email for both roles.
 export const OFFICERS: Record<string, OfficerPublic> = {
   escalante: { id: 'escalante', name: 'Bro. Adrian Escalante', title: 'District Director', initials: 'AE', scope: 'all', tier: 'district' },
-  bernard: { id: 'bernard', name: 'Bro. William Bernard', title: 'Chief Dean of Membership Intake', initials: 'WB', scope: 'all', tier: 'district' },
+  bernard: { id: 'bernard', name: 'Bro. William Bernard', title: 'Chief Dean of Membership Intake · Area 2 Director', initials: 'WB', scope: 'all', tier: 'district' },
   carroll: { id: 'carroll', name: 'Bro. Mancil Carroll', title: 'Chief Administrator', initials: 'MC', scope: 'all', tier: 'district' },
 
-  'tanner-4041': { id: 'tanner-4041', name: 'Bro. Theo Tanner', title: 'Area Director', area: 4041, initials: 'TT', scope: [4041], tier: 'area' },
+  // Area 1 · Dallas
+  'tanner-4041': { id: 'tanner-4041', name: 'Bro. Theo Tanner', title: 'Area Director / Chief Dean', area: 4041, initials: 'TT', scope: [4041], tier: 'area' },
   'carroll-4041': { id: 'carroll-4041', name: 'Bro. Mancil Carroll', title: 'Assistant Area Director', area: 4041, initials: 'MC', scope: [4041], tier: 'area' },
 
-  'ad-4042': { id: 'ad-4042', name: 'Bro. Area Director', title: 'Area Director', area: 4042, initials: 'AD', scope: [4042], tier: 'area' },
-  'ad-4043': { id: 'ad-4043', name: 'Bro. Area Director', title: 'Area Director', area: 4043, initials: 'AD', scope: [4043], tier: 'area' },
-  'ad-4044': { id: 'ad-4044', name: 'Bro. Area Director', title: 'Area Director', area: 4044, initials: 'AD', scope: [4044], tier: 'area' },
-  'ad-4045': { id: 'ad-4045', name: 'Bro. Area Director', title: 'Area Director', area: 4045, initials: 'AD', scope: [4045], tier: 'area' },
-  'ad-4046': { id: 'ad-4046', name: 'Bro. Area Director', title: 'Area Director', area: 4046, initials: 'AD', scope: [4046], tier: 'area' },
-  'ad-4047': { id: 'ad-4047', name: 'Bro. Area Director', title: 'Area Director', area: 4047, initials: 'AD', scope: [4047], tier: 'area' },
-  'ad-4048': { id: 'ad-4048', name: 'Bro. Area Director', title: 'Area Director', area: 4048, initials: 'AD', scope: [4048], tier: 'area' },
-  'ad-4049': { id: 'ad-4049', name: 'Bro. Area Director', title: 'Area Director', area: 4049, initials: 'AD', scope: [4049], tier: 'area' },
-  'ad-4050': { id: 'ad-4050', name: 'Bro. Area Director', title: 'Area Director', area: 4050, initials: 'AD', scope: [4050], tier: 'area' },
-  'ad-4051': { id: 'ad-4051', name: 'Bro. Area Director', title: 'Area Director', area: 4051, initials: 'AD', scope: [4051], tier: 'area' },
+  // Area 2 · Arlington / Fort Worth / Grapevine — Director/Chief Dean is Bernard (district account above)
+  'cathey-4042': { id: 'cathey-4042', name: 'Bro. Victor Cathey', title: 'Assistant Area Director', area: 4042, initials: 'VC', scope: [4042], tier: 'area' },
+  'corzine-4042': { id: 'corzine-4042', name: 'Bro. Jay Corzine', title: 'Assistant Area Director', area: 4042, initials: 'JC', scope: [4042], tier: 'area' },
+
+  // Area 3 · Longview / Tyler / Northeast TX
+  'norman-4043': { id: 'norman-4043', name: 'Bro. Shiro Norman', title: 'Area Director / Chief Dean', area: 4043, initials: 'SN', scope: [4043], tier: 'area' },
+
+  // Area 4 · El Paso
+  'wheaton-4044': { id: 'wheaton-4044', name: 'Bro. James Wheaton', title: 'Area Director / Chief Dean', area: 4044, initials: 'JW', scope: [4044], tier: 'area' },
+
+  // Area 5 · Central TX
+  'dixon-4045': { id: 'dixon-4045', name: 'Bro. Dwight Dixon', title: 'Area Director / Chief Dean', area: 4045, initials: 'DD', scope: [4045], tier: 'area' },
+
+  // Area 6 · Austin / San Marcos
+  'wooten-4046': { id: 'wooten-4046', name: 'Bro. Keith Wooten', title: 'Area Director / Chief Dean', area: 4046, initials: 'KW', scope: [4046], tier: 'area' },
+
+  // Area 7 · San Antonio — Bishop holds both Area Director and Chief Dean
+  'bishop-4047': { id: 'bishop-4047', name: 'Bro. Trent Bishop', title: 'Area Director / Chief Dean', area: 4047, initials: 'TB', scope: [4047], tier: 'area' },
+  'renteria-4047': { id: 'renteria-4047', name: 'Bro. Anthony Renteria', title: 'Assistant Area Director', area: 4047, initials: 'AR', scope: [4047], tier: 'area' },
+
+  // Area 8 · Houston
+  'neal-4048': { id: 'neal-4048', name: 'Bro. Frank Neal', title: 'Area Director / Chief Dean', area: 4048, initials: 'FN', scope: [4048], tier: 'area' },
+  'green-4048': { id: 'green-4048', name: 'Bro. Darryl Green', title: 'Assistant Area Director', area: 4048, initials: 'DG', scope: [4048], tier: 'area' },
+
+  // Area 9 · College Station / Prairie View
+  'carter-4049': { id: 'carter-4049', name: 'Bro. Adrian Carter', title: 'Area Director / Chief Dean', area: 4049, initials: 'AC', scope: [4049], tier: 'area' },
+
+  // Area 10 · Southeastern TX
+  'oliver-4050': { id: 'oliver-4050', name: 'Bro. Wayne Oliver', title: 'Area Director / Chief Dean', area: 4050, initials: 'WO', scope: [4050], tier: 'area' },
+  'bates-4050': { id: 'bates-4050', name: 'Bro. Christopher Bates', title: 'Assistant Area Director', area: 4050, initials: 'CB', scope: [4050], tier: 'area' },
+
+  // Area 11 · Lubbock / Amarillo — Director and Chief Dean are two different officers
+  'smith-4051': { id: 'smith-4051', name: 'Bro. Ron Smith', title: 'Area Director', area: 4051, initials: 'RS', scope: [4051], tier: 'area' },
+  'love-4051': { id: 'love-4051', name: 'Bro. George Love', title: 'Chief Dean', area: 4051, initials: 'GL', scope: [4051], tier: 'area' },
 };
 
 export function officerCanSeeArea(officer: OfficerPublic | null | undefined, area: number): boolean {

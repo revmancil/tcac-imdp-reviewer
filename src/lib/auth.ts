@@ -7,22 +7,43 @@
 // two officers sharing a surname — e.g. `carroll` (Chief Administrator,
 // district-tier) and `carroll-4041` (Assistant Area Director, area-tier) —
 // never collide, which the old lastname-based `officerIdForEmail` lookup did.
+//
+// Real personal emails supplied by the district (2026-08-03). William Bernard
+// intentionally has only one entry (`bernard`) — he holds both the
+// district-wide Chief Dean seat and the Area 2 Director/Chief Dean seat under
+// the same login, so there is no separate `bernard-4042` row.
 export const OFFICER_EMAILS: Record<string, string> = {
-  escalante: 'escalante@apa-texas.org',
-  bernard: 'bernard@apa-texas.org',
-  carroll: 'carroll@apa-texas.org',
-  'tanner-4041': 'tanner@apa-texas.org',
-  'carroll-4041': 'mcarroll@apa-texas.org',
-  'ad-4042': 'ad-4042@apa-texas.org',
-  'ad-4043': 'ad-4043@apa-texas.org',
-  'ad-4044': 'ad-4044@apa-texas.org',
-  'ad-4045': 'ad-4045@apa-texas.org',
-  'ad-4046': 'ad-4046@apa-texas.org',
-  'ad-4047': 'ad-4047@apa-texas.org',
-  'ad-4048': 'ad-4048@apa-texas.org',
-  'ad-4049': 'ad-4049@apa-texas.org',
-  'ad-4050': 'ad-4050@apa-texas.org',
-  'ad-4051': 'ad-4051@apa-texas.org',
+  escalante: 'adrianescalante1906@gmail.com',
+  bernard: 'Wbernard22@yahoo.com',
+  carroll: 'revmancil@hotmail.com',
+
+  'tanner-4041': 'Pharaoh87@tx.rr.com',
+  'carroll-4041': 'icecoldrev06@outlook.com',
+
+  'cathey-4042': 'victorcathey3@gmail.com',
+  'corzine-4042': 'zine1906@yahoo.com',
+
+  'norman-4043': 'briannorman2@yahoo.com',
+
+  'wheaton-4044': 'james.wheaton@hotmail.com',
+
+  'dixon-4045': 'threeddixon@hot.rr.com',
+
+  'wooten-4046': 'kdw106@sbcglobal.net',
+
+  'bishop-4047': 'president@drl1949.com',
+  'renteria-4047': 'arenteria@humana.com',
+
+  'neal-4048': 'fdn1906@att.net',
+  'green-4048': 'dgreen_77071@yahoo.com',
+
+  'carter-4049': 'Mradriancarter@gmail.com',
+
+  'oliver-4050': 'wao1906@gmail.com',
+  'bates-4050': 'cbates2003@gmail.com',
+
+  'smith-4051': 'ronnies764@gmail.com',
+  'love-4051': 'glovehy98@hotmail.com',
 };
 
 export function emailForOfficerId(id: string): string | null {
