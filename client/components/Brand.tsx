@@ -8,16 +8,13 @@ const DARK = '#0E0E0E'
 
 export function ShieldMark({ size = 40 }: { size?: number }) {
   return (
-    <svg width={size} height={size * 1.15} viewBox="0 0 40 46" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M2 3 H38 V26 C38 34 30 42 20 44 C10 42 2 34 2 26 Z" fill={DARK} stroke={GOLD} strokeWidth="1.5" />
-      <path d="M5 6 H35 V26 C35 32 28 39 20 41 C12 39 5 32 5 26 Z" fill="none" stroke={GOLD} strokeWidth="0.5" opacity="0.5" />
-      <text x="20" y="24" textAnchor="middle" fontFamily="'Cormorant Garamond', 'Playfair Display', serif" fontSize="12" fontWeight="700" fill={GOLD} letterSpacing="0.5">
-        ΑΦΑ
-      </text>
-      <text x="20" y="35" textAnchor="middle" fontFamily="'Cormorant Garamond', serif" fontSize="5" fill={GOLD} letterSpacing="1">
-        1906
-      </text>
-    </svg>
+    <img
+      src="/static/tcac-seal.png"
+      alt="Texas Council of Alpha Chapters seal"
+      width={size}
+      height={size}
+      style={{ width: size, height: size, borderRadius: '50%', objectFit: 'contain', flexShrink: 0 }}
+    />
   )
 }
 
