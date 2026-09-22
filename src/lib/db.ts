@@ -5,9 +5,9 @@
 // See migrations/0001_initial_schema.sql and migrations/0002_officer_credentials.sql.
 
 import postgres from 'postgres';
-import { SEED_CANDIDATES } from '../../shared/seed-candidates';
-import { statusByKey } from '../../shared/reference';
-import type { Candidate } from '../../shared/types';
+import { SEED_CANDIDATES } from '../../shared/seed-candidates.js';
+import { statusByKey } from '../../shared/reference.js';
+import type { Candidate } from '../../shared/types.js';
 
 // Supabase's pooled connection (port 6543, pgbouncer in transaction mode)
 // is the right choice for a serverless deployment — it doesn't support

@@ -10,7 +10,7 @@ import type {
   StatusDef,
   StatusKey,
   WorkflowStepDef,
-} from './types';
+} from './types.js';
 
 export const REQUIRED_DOCS: RequiredDocDef[] = [
   { key: 'application', label: 'Membership Application', short: 'Application', pages: 6 },

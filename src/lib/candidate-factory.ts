@@ -4,8 +4,8 @@
 // Notes": "In production, upload to the server and validate row-by-row
 // before commit."
 
-import { CHAPTERS, REQUIRED_DOCS, STATUS } from '../../shared/reference';
-import type { Candidate, DocState } from '../../shared/types';
+import { CHAPTERS, REQUIRED_DOCS, STATUS } from '../../shared/reference.js';
+import type { Candidate, DocState } from '../../shared/types.js';
 
 export interface ManualCandidateInput {
   id: string;

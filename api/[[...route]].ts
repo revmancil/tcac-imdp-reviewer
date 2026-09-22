@@ -3,7 +3,7 @@
 // runtime (not Edge) because the Postgres connection (src/lib/db.ts) needs a
 // raw TCP socket, which Edge Functions don't support.
 import { handle } from 'hono/vercel'
-import app from '../src/index'
+import app from '../src/index.js'
 
 export const config = {
   runtime: 'nodejs',

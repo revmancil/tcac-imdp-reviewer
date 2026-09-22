@@ -11,9 +11,9 @@ import {
   officerCanSeeChapterKey,
   officerCanSeeArea,
   getChapter,
-} from '../shared/reference'
-import type { OfficerPublic } from '../shared/types'
-import { readSession, setSession, clearSession } from './lib/session'
+} from '../shared/reference.js'
+import type { OfficerPublic } from '../shared/types.js'
+import { readSession, setSession, clearSession } from './lib/session.js'
 import {
   listCandidates,
   getCandidate,
@@ -30,11 +30,11 @@ import {
   recordFailedLogin,
   resetFailedLogins,
   setPassword,
-} from './lib/db'
-import { putFile, getFile } from './lib/storage'
-import { makeCandidate, parseCandidateCSV, buildCSVTemplate } from './lib/candidate-factory'
-import { hashPassword, verifyPassword, randomTempPassword } from './lib/password'
-import { OFFICER_EMAILS, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth'
+} from './lib/db.js'
+import { putFile, getFile } from './lib/storage.js'
+import { makeCandidate, parseCandidateCSV, buildCSVTemplate } from './lib/candidate-factory.js'
+import { hashPassword, verifyPassword, randomTempPassword } from './lib/password.js'
+import { OFFICER_EMAILS, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth.js'
 
 const app = new Hono().basePath('/api')
 

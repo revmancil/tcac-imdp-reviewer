@@ -2,8 +2,8 @@
 // Used to populate the database on first run (see src/lib/db.ts ensureReady()).
 // In production this table is populated by real intake submissions instead.
 
-import { REQUIRED_DOCS, STATUS } from './reference';
-import type { Candidate, DocState } from './types';
+import { REQUIRED_DOCS, STATUS } from './reference.js';
+import type { Candidate, DocState } from './types.js';
 
 function baseDocs(overrides: Record<string, Partial<DocState>> = {}): Record<string, DocState> {
   const base: Record<string, DocState> = {};
