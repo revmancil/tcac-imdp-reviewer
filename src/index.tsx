@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { serveStatic } from 'hono/cloudflare-pages'
 
 import {
   CHAPTERS,
@@ -23,7 +22,6 @@ import {
   insertCandidates,
   updateCandidateDoc,
   logAudit,
-  ensureReady,
   countCredentials,
   getCredentialByOfficerId,
   getCredentialByEmail,
@@ -33,34 +31,27 @@ import {
   resetFailedLogins,
   setPassword,
 } from './lib/db'
+import { putFile, getFile } from './lib/storage'
 import { makeCandidate, parseCandidateCSV, buildCSVTemplate } from './lib/candidate-factory'
 import { hashPassword, verifyPassword, randomTempPassword } from './lib/password'
 import { OFFICER_EMAILS, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth'
 
-export type Bindings = {
-  DB: D1Database
-  UPLOADS: R2Bucket
-  SESSION_SECRET?: string
-  AUTH_BOOTSTRAP_SECRET?: string
-  ASSETS: Fetcher
-}
+const app = new Hono().basePath('/api')
 
-const app = new Hono<{ Bindings: Bindings }>()
+app.use('*', cors())
 
-app.use('/api/*', cors())
-
-function secretOf(env: Bindings): string {
-  return env.SESSION_SECRET || 'dev-secret-tcac-intake-do-not-use-in-real-prod'
+function secretOf(): string {
+  return process.env.SESSION_SECRET || 'dev-secret-tcac-intake-do-not-use-in-real-prod'
 }
 
 type SessionOfficer = OfficerPublic & { mustChangePassword?: boolean }
 
 async function currentOfficer(c: any): Promise<SessionOfficer | null> {
-  const id = await readSession(c, secretOf(c.env))
+  const id = await readSession(c, secretOf())
   if (!id) return null
   const officer = OFFICERS[id]
   if (!officer) return null
-  const cred = await getCredentialByOfficerId(c.env.DB, id)
+  const cred = await getCredentialByOfficerId(id)
   return { ...officer, mustChangePassword: cred ? cred.must_change === 1 : false }
 }
 
@@ -75,14 +66,14 @@ function allowedChapterKeysFor(officer: OfficerPublic | null): string[] | 'all' 
 // Auth
 // ---------------------------------------------------------------------------
 
-app.post('/api/auth/signin', async (c) => {
-  const body = await c.req.json<{ email?: string; password?: string }>().catch(() => ({}))
+app.post('/auth/signin', async (c) => {
+  const body = await c.req.json<{ email?: string; password?: string }>().catch(() => ({}) as { email?: string; password?: string })
   const email = (body.email || '').trim()
   const password = body.password || ''
   const genericError = 'Incorrect email or password.'
   if (!email || !password) return c.json({ error: genericError }, 401)
 
-  const cred = await getCredentialByEmail(c.env.DB, email)
+  const cred = await getCredentialByEmail(email)
   if (!cred) return c.json({ error: genericError }, 401)
 
   const officer = OFFICERS[cred.officer_id]
@@ -95,7 +86,7 @@ app.post('/api/auth/signin', async (c) => {
 
   const ok = await verifyPassword(password, cred.password_hash, cred.password_salt, cred.iterations)
   if (!ok) {
-    await recordFailedLogin(c.env.DB, cred.officer_id, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES)
+    await recordFailedLogin(cred.officer_id, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES)
     const remaining = Math.max(0, MAX_LOGIN_ATTEMPTS - (cred.failed_attempts + 1))
     if (remaining <= 0) {
       return c.json({ error: `Too many failed attempts. Account locked for ${LOCKOUT_MINUTES} minutes.` }, 423)
@@ -103,17 +94,17 @@ app.post('/api/auth/signin', async (c) => {
     return c.json({ error: `${genericError} ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before lockout.` }, 401)
   }
 
-  await resetFailedLogins(c.env.DB, cred.officer_id)
-  await setSession(c, secretOf(c.env), officer.id)
+  await resetFailedLogins(cred.officer_id)
+  await setSession(c, secretOf(), officer.id)
   return c.json({ officer: { ...officer, mustChangePassword: cred.must_change === 1 } })
 })
 
-app.post('/api/auth/signout', async (c) => {
+app.post('/auth/signout', async (c) => {
   clearSession(c)
   return c.json({ ok: true })
 })
 
-app.get('/api/auth/me', async (c) => {
+app.get('/auth/me', async (c) => {
   const officer = await currentOfficer(c)
   return c.json({ officer })
 })
@@ -127,16 +118,16 @@ function requireOfficer(c: any, officer: OfficerPublic | null) {
 
 // Change own password — used both for the voluntary "change password" action
 // and the forced first-login flow (must_change=1 after admin reset/bootstrap).
-app.post('/api/auth/change-password', async (c) => {
+app.post('/auth/change-password', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireOfficer(c, officer)
   if (denied) return denied
 
-  const body = await c.req.json<{ currentPassword?: string; newPassword?: string }>().catch(() => ({}))
+  const body = await c.req.json<{ currentPassword?: string; newPassword?: string }>().catch(() => ({}) as { currentPassword?: string; newPassword?: string })
   const currentPassword = body.currentPassword || ''
   const newPassword = body.newPassword || ''
 
-  const cred = await getCredentialByOfficerId(c.env.DB, officer!.id)
+  const cred = await getCredentialByOfficerId(officer!.id)
   if (!cred) return c.json({ error: 'No credential record found for this officer.' }, 400)
 
   const ok = await verifyPassword(currentPassword, cred.password_hash, cred.password_salt, cred.iterations)
@@ -150,7 +141,7 @@ app.post('/api/auth/change-password', async (c) => {
   }
 
   const { hash, salt, iterations } = await hashPassword(newPassword)
-  await setPassword(c.env.DB, officer!.id, hash, salt, iterations, false)
+  await setPassword(officer!.id, hash, salt, iterations, false)
   return c.json({ ok: true })
 })
 
@@ -168,12 +159,12 @@ function requireDistrictTier(c: any, officer: OfficerPublic | null) {
   return null
 }
 
-app.get('/api/auth/admin/officers', async (c) => {
+app.get('/auth/admin/officers', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireDistrictTier(c, officer)
   if (denied) return denied
 
-  const metas = await listCredentialsMeta(c.env.DB)
+  const metas = await listCredentialsMeta()
   const byId = new Map(metas.map((m) => [m.officer_id, m]))
   const rows = Object.values(OFFICERS).map((o) => {
     const meta = byId.get(o.id)
@@ -189,12 +180,12 @@ app.get('/api/auth/admin/officers', async (c) => {
   return c.json({ rows })
 })
 
-app.post('/api/auth/admin/reset-password', async (c) => {
+app.post('/auth/admin/reset-password', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireDistrictTier(c, officer)
   if (denied) return denied
 
-  const body = await c.req.json<{ officerId?: string }>().catch(() => ({}))
+  const body = await c.req.json<{ officerId?: string }>().catch(() => ({}) as { officerId?: string })
   const targetId = body.officerId || ''
   const target = OFFICERS[targetId]
   if (!target) return c.json({ error: 'Unknown officer' }, 400)
@@ -204,24 +195,24 @@ app.post('/api/auth/admin/reset-password', async (c) => {
 
   const tempPassword = randomTempPassword()
   const { hash, salt, iterations } = await hashPassword(tempPassword)
-  await upsertCredential(c.env.DB, targetId, email, hash, salt, iterations, true)
-  await logAudit(c.env.DB, 'system', officer!.id, 'password_reset', `${officer!.name} reset the password for ${target.name}`)
+  await upsertCredential(targetId, email, hash, salt, iterations, true)
+  await logAudit('system', officer!.id, 'password_reset', `${officer!.name} reset the password for ${target.name}`)
 
   return c.json({ officerId: targetId, email, tempPassword })
 })
 
 // One-time bootstrap: seeds a temp password for every officer that doesn't
 // yet have a credential row. Self-disables once every officer has one, and
-// always requires AUTH_BOOTSTRAP_SECRET (a Worker secret, set out of band —
-// never checked into wrangler.jsonc) so it can't be replayed by the public.
-app.post('/api/auth/bootstrap', async (c) => {
-  const configured = c.env.AUTH_BOOTSTRAP_SECRET
+// always requires AUTH_BOOTSTRAP_SECRET (a Vercel env var, set out of band —
+// never checked into the repo) so it can't be replayed by the public.
+app.post('/auth/bootstrap', async (c) => {
+  const configured = process.env.AUTH_BOOTSTRAP_SECRET
   if (!configured) return c.json({ error: 'Bootstrap is not enabled on this deployment.' }, 403)
 
-  const body = await c.req.json<{ secret?: string }>().catch(() => ({}))
+  const body = await c.req.json<{ secret?: string }>().catch(() => ({}) as { secret?: string })
   if (body.secret !== configured) return c.json({ error: 'Invalid bootstrap secret.' }, 403)
 
-  const existing = await listCredentialsMeta(c.env.DB)
+  const existing = await listCredentialsMeta()
   const existingIds = new Set(existing.map((m) => m.officer_id))
   const toSeed = Object.values(OFFICERS).filter((o) => !existingIds.has(o.id))
   if (toSeed.length === 0) {
@@ -234,7 +225,7 @@ app.post('/api/auth/bootstrap', async (c) => {
     if (!email) continue
     const tempPassword = randomTempPassword()
     const { hash, salt, iterations } = await hashPassword(tempPassword)
-    await upsertCredential(c.env.DB, o.id, email, hash, salt, iterations, true)
+    await upsertCredential(o.id, email, hash, salt, iterations, true)
     results.push({ officerId: o.id, name: o.name, email, tempPassword })
   }
   return c.json({ seeded: results.length, officers: results })
@@ -244,7 +235,7 @@ app.post('/api/auth/bootstrap', async (c) => {
 // Reference data
 // ---------------------------------------------------------------------------
 
-app.get('/api/reference', (c) => {
+app.get('/reference', (c) => {
   return c.json({
     chapters: CHAPTERS,
     officers: Object.values(OFFICERS),
@@ -259,27 +250,27 @@ app.get('/api/reference', (c) => {
 // Candidates — roster / detail / create / missing-report
 // ---------------------------------------------------------------------------
 
-app.get('/api/candidates', async (c) => {
+app.get('/candidates', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireOfficer(c, officer)
   if (denied) return denied
 
   const { q, status, type, chapter, sort } = c.req.query()
   const allowed = allowedChapterKeysFor(officer)
-  const list = await listCandidates(c.env.DB, {
+  const list = await listCandidates({
     q, status, type, chapterKey: chapter, sort,
     allowedChapterKeys: allowed,
   })
   return c.json({ candidates: list })
 })
 
-app.get('/api/candidates/missing-report', async (c) => {
+app.get('/candidates/missing-report', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireOfficer(c, officer)
   if (denied) return denied
 
   const allowed = allowedChapterKeysFor(officer)
-  const list = await listCandidates(c.env.DB, { allowedChapterKeys: allowed, sort: 'id' })
+  const list = await listCandidates({ allowedChapterKeys: allowed, sort: 'id' })
   const rows: any[] = []
   list.forEach((cand) => {
     REQUIRED_DOCS.forEach((d) => {
@@ -301,7 +292,7 @@ app.get('/api/candidates/missing-report', async (c) => {
   return c.json({ rows })
 })
 
-app.get('/api/candidates/csv-template', (c) => {
+app.get('/candidates/csv-template', (c) => {
   const csv = buildCSVTemplate()
   return c.body(csv, 200, {
     'Content-Type': 'text/csv',
@@ -309,7 +300,7 @@ app.get('/api/candidates/csv-template', (c) => {
   })
 })
 
-app.post('/api/candidates/csv/preview', async (c) => {
+app.post('/candidates/csv/preview', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireOfficer(c, officer)
   if (denied) return denied
@@ -317,7 +308,7 @@ app.post('/api/candidates/csv/preview', async (c) => {
   const { csv } = await c.req.json<{ csv?: string }>().catch(() => ({ csv: '' }))
   const parsed = parseCandidateCSV(csv || '')
 
-  const existing = await Promise.all(parsed.rows.map((r) => candidateExists(c.env.DB, String(r.id))))
+  const existing = await Promise.all(parsed.rows.map((r) => candidateExists(String(r.id))))
   const annotated = parsed.rows.map((r, i) => {
     const chapter = CHAPTERS[r.chapterKey]
     const inScope = officerCanSeeArea(officer, chapter?.area ?? -1)
@@ -332,7 +323,7 @@ app.post('/api/candidates/csv/preview', async (c) => {
   return c.json({ rows: annotated, errors: parsed.errors })
 })
 
-app.post('/api/candidates/csv/commit', async (c) => {
+app.post('/candidates/csv/commit', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireOfficer(c, officer)
   if (denied) return denied
@@ -345,17 +336,17 @@ app.post('/api/candidates/csv/commit', async (c) => {
     const chapter = CHAPTERS[r.chapterKey]
     if (!chapter) continue
     if (!officerCanSeeArea(officer, chapter.area)) continue
-    if (await candidateExists(c.env.DB, String(r.id))) continue
+    if (await candidateExists(String(r.id))) continue
     toInsert.push(makeCandidate(r))
   }
-  await insertCandidates(c.env.DB, toInsert)
+  await insertCandidates(toInsert)
   for (const cand of toInsert) {
-    await logAudit(c.env.DB, cand.id, officer!.id, 'csv_import', `Imported via CSV by ${officer!.name}`)
+    await logAudit(cand.id, officer!.id, 'csv_import', `Imported via CSV by ${officer!.name}`)
   }
   return c.json({ inserted: toInsert.length })
 })
 
-app.post('/api/candidates', async (c) => {
+app.post('/candidates', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireOfficer(c, officer)
   if (denied) return denied
@@ -373,7 +364,7 @@ app.post('/api/candidates', async (c) => {
   const gpaNum = parseFloat(body.gpa)
   if (body.gpa && (isNaN(gpaNum) || gpaNum < 0 || gpaNum > 4.5)) errors.gpa = 'GPA must be 0.00–4.50'
 
-  if (!errors.id && (await candidateExists(c.env.DB, String(body.id).trim()))) {
+  if (!errors.id && (await candidateExists(String(body.id).trim()))) {
     errors.id = `Candidate #${body.id} already exists`
   }
   if (!errors.chapterKey && officer && !officerCanSeeChapterKey(officer, body.chapterKey)) {
@@ -400,17 +391,17 @@ app.post('/api/candidates', async (c) => {
     sponsorName: (body.sponsorName || '').trim(),
     recommenderName: (body.recommenderName || '').trim(),
   })
-  await insertCandidate(c.env.DB, candidate)
-  await logAudit(c.env.DB, candidate.id, officer!.id, 'create', `Manually added by ${officer!.name}`)
+  await insertCandidate(candidate)
+  await logAudit(candidate.id, officer!.id, 'create', `Manually added by ${officer!.name}`)
   return c.json({ candidate })
 })
 
-app.get('/api/candidates/:id', async (c) => {
+app.get('/candidates/:id', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireOfficer(c, officer)
   if (denied) return denied
 
-  const candidate = await getCandidate(c.env.DB, c.req.param('id'))
+  const candidate = await getCandidate(c.req.param('id'))
   if (!candidate) return c.json({ error: 'Not found' }, 404)
 
   if (!officerCanSeeChapterKey(officer, candidate.chapterKey)) {
@@ -425,13 +416,13 @@ app.get('/api/candidates/:id', async (c) => {
   return c.json({ candidate })
 })
 
-app.post('/api/candidates/:id/docs/:docKey', async (c) => {
+app.post('/candidates/:id/docs/:docKey', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireOfficer(c, officer)
   if (denied) return denied
 
   const { id, docKey } = c.req.param()
-  const candidate = await getCandidate(c.env.DB, id)
+  const candidate = await getCandidate(id)
   if (!candidate) return c.json({ error: 'Not found' }, 404)
   if (!officerCanSeeChapterKey(officer, candidate.chapterKey)) return c.json({ error: 'access_denied' }, 403)
   if (!REQUIRED_DOCS.some((d) => d.key === docKey)) return c.json({ error: 'Unknown document type' }, 400)
@@ -442,9 +433,7 @@ app.post('/api/candidates/:id/docs/:docKey', async (c) => {
   if (file.size > 25 * 1024 * 1024) return c.json({ error: 'File exceeds 25 MB limit' }, 413)
 
   const key = `candidates/${id}/${docKey}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`
-  await c.env.UPLOADS.put(key, await file.arrayBuffer(), {
-    httpMetadata: { contentType: file.type || 'application/octet-stream' },
-  })
+  await putFile(key, await file.arrayBuffer(), file.type || 'application/octet-stream')
 
   const wasReplaced = !!candidate.docs[docKey]?.file
   const doc = {
@@ -454,41 +443,21 @@ app.post('/api/candidates/:id/docs/:docKey', async (c) => {
     file: `/api/files/${key}`,
     uploadedAt: new Date().toISOString(),
   }
-  const updated = await updateCandidateDoc(c.env.DB, id, docKey, doc)
-  await logAudit(c.env.DB, id, officer!.id, wasReplaced ? 'doc_replace' : 'doc_upload', `${docKey} by ${officer!.name}`)
+  const updated = await updateCandidateDoc(id, docKey, doc)
+  await logAudit(id, officer!.id, wasReplaced ? 'doc_replace' : 'doc_upload', `${docKey} by ${officer!.name}`)
   return c.json({ candidate: updated })
 })
 
-app.get('/api/files/*', async (c) => {
+app.get('/files/*', async (c) => {
   const key = c.req.path.replace(/^\/api\/files\//, '')
-  const obj = await c.env.UPLOADS.get(key)
-  if (!obj) return c.notFound()
-  return new Response(obj.body, {
+  const file = await getFile(key)
+  if (!file) return c.notFound()
+  return new Response(file.body, {
     headers: {
-      'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream',
+      'Content-Type': file.contentType,
       'Cache-Control': 'private, max-age=3600',
     },
   })
-})
-
-// ---------------------------------------------------------------------------
-// Static assets + SPA fallback
-// ---------------------------------------------------------------------------
-// Cloudflare Pages "advanced mode" (_worker.js) routes every request through
-// this Worker — including requests for files that exist in dist/. We proxy
-// those to the ASSETS binding, and fall back to index.html for any route
-// that isn't a real static file, so client-side routes (react-router) work
-// on hard refresh / direct link (e.g. /candidates/2897040).
-
-app.get('/static/*', serveStatic())
-
-app.get('*', async (c) => {
-  const res = await c.env.ASSETS.fetch(c.req.raw)
-  if (res.status !== 404) return res
-  const url = new URL(c.req.url)
-  url.pathname = '/index.html'
-  const fallback = await c.env.ASSETS.fetch(new Request(url.toString(), c.req.raw))
-  return new Response(fallback.body, { status: 200, headers: fallback.headers })
 })
 
 export default app

@@ -1,5 +1,5 @@
 // Seed candidate records — ported from the design handoff's data.jsx.
-// Used to populate D1 on first run (see src/lib/db.ts ensureSeeded()).
+// Used to populate the database on first run (see src/lib/db.ts ensureReady()).
 // In production this table is populated by real intake submissions instead.
 
 import { REQUIRED_DOCS, STATUS } from './reference';

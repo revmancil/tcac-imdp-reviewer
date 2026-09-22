@@ -1,7 +1,5 @@
-// Builds the React SPA bundle into public/static/app.js.
-// Run BEFORE the worker build (see package.json "build" script) so the
-// Cloudflare Pages build output (dist/) picks up the freshly built bundle
-// when @hono/vite-build copies public/ into dist/.
+// Builds the React SPA bundle into public/static/app.js — Vercel serves
+// public/ directly as static output (see vercel.json), no further bundling.
 import { defineConfig } from 'vite'
 
 export default defineConfig({
