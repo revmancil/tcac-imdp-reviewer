@@ -15,4 +15,8 @@ export const config = {
   runtime: 'nodejs',
 }
 
-export default handle(app)
+// Vercel's Node.js Functions runtime expects a Web-standard handler as a
+// named `fetch` export (or per-method exports like `GET`/`POST`) -- a
+// `default` export that returns a Response is silently ignored (its return
+// value is dropped, per Vercel's function-signature warning).
+export const fetch = handle(app)

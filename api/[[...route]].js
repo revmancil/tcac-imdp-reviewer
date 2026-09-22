@@ -1505,8 +1505,8 @@ var src_default = app;
 var config = {
   runtime: "nodejs"
 };
-var vercel_app_default = handle(src_default);
+var fetch = handle(src_default);
 export {
   config,
-  vercel_app_default as default
+  fetch
 };
