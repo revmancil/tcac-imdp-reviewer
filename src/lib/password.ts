@@ -1,7 +1,6 @@
 // Password hashing for officer credentials, built entirely on Web Crypto
-// (Cloudflare Workers has no Node `crypto` and no native bcrypt/argon2/scrypt
-// binding). PBKDF2-SHA256 with a random per-user salt and a high iteration
-// count is the standard Workers-safe substitute.
+// (portable across runtimes, no native bcrypt/argon2/scrypt binding needed).
+// PBKDF2-SHA256 with a random per-user salt and a high iteration count.
 
 const ITERATIONS = 100_000;
 const HASH_BITS = 256;
@@ -41,7 +40,7 @@ async function pbkdf2(password: string, saltHex: string, iterations: number): Pr
     ['deriveBits']
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: fromHex(saltHex), iterations, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: fromHex(saltHex) as BufferSource, iterations, hash: 'SHA-256' },
     keyMaterial,
     HASH_BITS
   );

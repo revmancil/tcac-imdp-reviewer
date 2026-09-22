@@ -1,11 +1,23 @@
-// D1 data access layer for the TCAC (Texas Council of Alpha Chapters) Intake Review Tool.
-// Candidates are stored with a few promoted columns (for SQL filter/sort)
-// plus a JSON `data` blob holding the nested docs/workflow/sponsor/etc.
-// shape described in shared/types.ts. See migrations/0001_initial_schema.sql.
+// Supabase (Postgres) data access layer for the TCAC (Texas Council of Alpha
+// Chapters) Intake Review Tool. Candidates are stored with a few promoted
+// columns (for SQL filter/sort) plus a JSON `data` blob holding the nested
+// docs/workflow/sponsor/etc. shape described in shared/types.ts.
+// See migrations/0001_initial_schema.sql and migrations/0002_officer_credentials.sql.
 
+import postgres from 'postgres';
 import { SEED_CANDIDATES } from '../../shared/seed-candidates';
 import { statusByKey } from '../../shared/reference';
 import type { Candidate } from '../../shared/types';
+
+// Supabase's pooled connection (port 6543, pgbouncer in transaction mode)
+// is the right choice for a serverless deployment — it doesn't support
+// prepared statements across requests, hence `prepare: false`. If you
+// instead point DATABASE_URL at the direct connection (port 5432) this
+// still works fine.
+const sql = postgres(process.env.DATABASE_URL || '', {
+  prepare: false,
+  ssl: 'require',
+});
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS candidates (
@@ -22,17 +34,17 @@ CREATE TABLE IF NOT EXISTS candidates (
   last_activity   TEXT NOT NULL,
   is_new          INTEGER NOT NULL DEFAULT 0,
   data            TEXT NOT NULL,
-  created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_candidates_chapter ON candidates(chapter_key);
 CREATE INDEX IF NOT EXISTS idx_candidates_status ON candidates(status_key);
 CREATE TABLE IF NOT EXISTS audit_log (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  id            SERIAL PRIMARY KEY,
   candidate_id  TEXT NOT NULL,
   officer_id    TEXT NOT NULL,
   action        TEXT NOT NULL,
   detail        TEXT,
-  created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS officer_credentials (
   officer_id       TEXT PRIMARY KEY,
@@ -41,9 +53,9 @@ CREATE TABLE IF NOT EXISTS officer_credentials (
   password_salt    TEXT NOT NULL,
   iterations       INTEGER NOT NULL DEFAULT 100000,
   failed_attempts  INTEGER NOT NULL DEFAULT 0,
-  locked_until     TEXT,
+  locked_until     TIMESTAMPTZ,
   must_change      INTEGER NOT NULL DEFAULT 1,
-  updated_at       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_officer_credentials_email ON officer_credentials(email);
 `;
@@ -51,51 +63,46 @@ CREATE INDEX IF NOT EXISTS idx_officer_credentials_email ON officer_credentials(
 let schemaReady = false;
 let seedChecked = false;
 
-export async function ensureReady(db: D1Database) {
+export async function ensureReady() {
   if (!schemaReady) {
-    await db.batch(
-      SCHEMA_SQL.split(';').map((s) => s.trim()).filter(Boolean).map((s) => db.prepare(s))
-    );
+    await sql.unsafe(SCHEMA_SQL);
     schemaReady = true;
   }
   if (!seedChecked) {
     seedChecked = true;
-    const row = await db.prepare('SELECT COUNT(*) AS n FROM candidates').first<{ n: number }>();
-    if (!row || row.n === 0) {
-      await seedDatabase(db);
+    const rows = await sql<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM candidates`;
+    if (!rows[0] || rows[0].n === 0) {
+      await seedDatabase();
     }
   }
 }
 
-async function seedDatabase(db: D1Database) {
-  const stmts = SEED_CANDIDATES.map((c) => insertStatement(db, c));
-  await db.batch(stmts);
+async function seedDatabase() {
+  await sql.begin((tx) => Promise.all(SEED_CANDIDATES.map((c) => upsertCandidateRow(c, tx))));
 }
 
-function insertStatement(db: D1Database, c: Candidate) {
+async function upsertCandidateRow(c: Candidate, db: postgres.Sql<any> | postgres.TransactionSql<any> = sql) {
   const rest: any = { ...c };
   // status/chapter/gpa/etc are promoted columns; keep the rest in `data`.
-  return db
-    .prepare(
-      `INSERT OR REPLACE INTO candidates
-        (id, full_id, name, initials, chapter_key, chapter_type, school, gpa, status_key, submitted, last_activity, is_new, data)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .bind(
-      c.id,
-      c.fullId,
-      c.name,
-      c.initials,
-      c.chapterKey,
-      c.chapterType,
-      c.school,
-      c.gpa,
-      c.status.key,
-      c.submitted,
-      c.lastActivity,
-      c.isNew ? 1 : 0,
-      JSON.stringify(rest)
-    );
+  await db`
+    INSERT INTO candidates
+      (id, full_id, name, initials, chapter_key, chapter_type, school, gpa, status_key, submitted, last_activity, is_new, data)
+    VALUES
+      (${c.id}, ${c.fullId}, ${c.name}, ${c.initials}, ${c.chapterKey}, ${c.chapterType}, ${c.school}, ${c.gpa}, ${c.status.key}, ${c.submitted}, ${c.lastActivity}, ${c.isNew ? 1 : 0}, ${JSON.stringify(rest)})
+    ON CONFLICT (id) DO UPDATE SET
+      full_id = EXCLUDED.full_id,
+      name = EXCLUDED.name,
+      initials = EXCLUDED.initials,
+      chapter_key = EXCLUDED.chapter_key,
+      chapter_type = EXCLUDED.chapter_type,
+      school = EXCLUDED.school,
+      gpa = EXCLUDED.gpa,
+      status_key = EXCLUDED.status_key,
+      submitted = EXCLUDED.submitted,
+      last_activity = EXCLUDED.last_activity,
+      is_new = EXCLUDED.is_new,
+      data = EXCLUDED.data
+  `;
 }
 
 function rowToCandidate(row: Record<string, any>): Candidate {
@@ -126,99 +133,84 @@ export interface ListOptions {
   allowedChapterKeys?: string[] | 'all';
 }
 
-export async function listCandidates(db: D1Database, opts: ListOptions): Promise<Candidate[]> {
-  await ensureReady(db);
-  const clauses: string[] = [];
-  const binds: any[] = [];
+const SORT_MAP: Record<string, string> = {
+  name: 'name ASC',
+  school: 'school ASC',
+  gpa: 'gpa DESC',
+  submitted: 'submitted DESC',
+  id: 'id ASC',
+};
 
-  if (opts.allowedChapterKeys && opts.allowedChapterKeys !== 'all') {
-    if (opts.allowedChapterKeys.length === 0) return [];
-    clauses.push(`chapter_key IN (${opts.allowedChapterKeys.map(() => '?').join(',')})`);
-    binds.push(...opts.allowedChapterKeys);
-  }
-  if (opts.status && opts.status !== 'all') {
-    clauses.push('status_key = ?');
-    binds.push(opts.status);
-  }
-  if (opts.type && opts.type !== 'all') {
-    clauses.push('chapter_type = ?');
-    binds.push(opts.type);
-  }
-  if (opts.chapterKey && opts.chapterKey !== 'all') {
-    clauses.push('chapter_key = ?');
-    binds.push(opts.chapterKey);
-  }
-  if (opts.q) {
-    clauses.push('(LOWER(name) LIKE ? OR LOWER(school) LIKE ? OR LOWER(id) LIKE ? OR LOWER(full_id) LIKE ?)');
-    const like = `%${opts.q.toLowerCase()}%`;
-    binds.push(like, like, like, like);
+export async function listCandidates(opts: ListOptions): Promise<Candidate[]> {
+  await ensureReady();
+
+  if (opts.allowedChapterKeys && opts.allowedChapterKeys !== 'all' && opts.allowedChapterKeys.length === 0) {
+    return [];
   }
 
-  let sql = 'SELECT * FROM candidates';
-  if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+  const allowed = opts.allowedChapterKeys && opts.allowedChapterKeys !== 'all' ? opts.allowedChapterKeys : null;
+  const status = opts.status && opts.status !== 'all' ? opts.status : null;
+  const type = opts.type && opts.type !== 'all' ? opts.type : null;
+  const chapterKey = opts.chapterKey && opts.chapterKey !== 'all' ? opts.chapterKey : null;
+  const like = opts.q ? `%${opts.q}%` : null;
+  const orderBy = SORT_MAP[opts.sort || 'id'] || SORT_MAP.id;
 
-  const sortMap: Record<string, string> = {
-    name: 'name ASC',
-    school: 'school ASC',
-    gpa: 'gpa DESC',
-    submitted: 'submitted DESC',
-    id: 'id ASC',
-  };
-  sql += ' ORDER BY is_new DESC, ' + (sortMap[opts.sort || 'id'] || sortMap.id);
-
-  const { results } = await db.prepare(sql).bind(...binds).all();
-  return (results || []).map(rowToCandidate);
+  const rows = await sql`
+    SELECT * FROM candidates
+    WHERE (${allowed}::text[] IS NULL OR chapter_key = ANY(${allowed}::text[]))
+      AND (${status}::text IS NULL OR status_key = ${status})
+      AND (${type}::text IS NULL OR chapter_type = ${type})
+      AND (${chapterKey}::text IS NULL OR chapter_key = ${chapterKey})
+      AND (${like}::text IS NULL OR name ILIKE ${like} OR school ILIKE ${like} OR id ILIKE ${like} OR full_id ILIKE ${like})
+    ORDER BY is_new DESC, ${sql.unsafe(orderBy)}
+  `;
+  return (rows as any[]).map(rowToCandidate);
 }
 
-export async function getCandidate(db: D1Database, id: string): Promise<Candidate | null> {
-  await ensureReady(db);
-  const row = await db.prepare('SELECT * FROM candidates WHERE id = ?').bind(id).first();
-  return row ? rowToCandidate(row) : null;
+export async function getCandidate(id: string): Promise<Candidate | null> {
+  await ensureReady();
+  const rows = await sql`SELECT * FROM candidates WHERE id = ${id}`;
+  return rows.length ? rowToCandidate(rows[0]) : null;
 }
 
-export async function candidateExists(db: D1Database, id: string): Promise<boolean> {
-  await ensureReady(db);
-  const row = await db.prepare('SELECT 1 AS x FROM candidates WHERE id = ?').bind(id).first();
-  return !!row;
+export async function candidateExists(id: string): Promise<boolean> {
+  await ensureReady();
+  const rows = await sql`SELECT 1 AS x FROM candidates WHERE id = ${id}`;
+  return rows.length > 0;
 }
 
-export async function insertCandidate(db: D1Database, c: Candidate): Promise<void> {
-  await ensureReady(db);
-  await insertStatement(db, c).run();
+export async function insertCandidate(c: Candidate): Promise<void> {
+  await ensureReady();
+  await upsertCandidateRow(c);
 }
 
-export async function insertCandidates(db: D1Database, list: Candidate[]): Promise<void> {
-  await ensureReady(db);
+export async function insertCandidates(list: Candidate[]): Promise<void> {
+  await ensureReady();
   if (list.length === 0) return;
-  await db.batch(list.map((c) => insertStatement(db, c)));
+  await sql.begin((tx) => Promise.all(list.map((c) => upsertCandidateRow(c, tx))));
 }
 
 export async function updateCandidateDoc(
-  db: D1Database,
   id: string,
   docKey: string,
   doc: Candidate['docs'][string]
 ): Promise<Candidate | null> {
-  await ensureReady(db);
-  const existing = await getCandidate(db, id);
+  await ensureReady();
+  const existing = await getCandidate(id);
   if (!existing) return null;
   existing.docs = { ...existing.docs, [docKey]: doc };
   existing.lastActivity = new Date().toISOString().slice(0, 10);
-  await insertStatement(db, existing).run();
+  await upsertCandidateRow(existing);
   return existing;
 }
 
-export async function logAudit(db: D1Database, candidateId: string, officerId: string, action: string, detail?: string) {
-  await ensureReady(db);
-  await db
-    .prepare('INSERT INTO audit_log (candidate_id, officer_id, action, detail) VALUES (?, ?, ?, ?)')
-    .bind(candidateId, officerId, action, detail || null)
-    .run();
+export async function logAudit(candidateId: string, officerId: string, action: string, detail?: string) {
+  await ensureReady();
+  await sql`INSERT INTO audit_log (candidate_id, officer_id, action, detail) VALUES (${candidateId}, ${officerId}, ${action}, ${detail || null})`;
 }
 
-export async function missingReport(db: D1Database, allowedChapterKeys: string[] | 'all') {
-  const list = await listCandidates(db, { allowedChapterKeys, sort: 'id' });
-  return list;
+export async function missingReport(allowedChapterKeys: string[] | 'all') {
+  return listCandidates({ allowedChapterKeys, sort: 'id' });
 }
 
 // ---------------------------------------------------------------------------
@@ -232,39 +224,39 @@ export interface OfficerCredentialRow {
   password_salt: string;
   iterations: number;
   failed_attempts: number;
-  locked_until: string | null;
+  locked_until: string | Date | null;
   must_change: number;
-  updated_at: string;
+  updated_at: string | Date;
 }
 
-export async function countCredentials(db: D1Database): Promise<number> {
-  await ensureReady(db);
-  const row = await db.prepare('SELECT COUNT(*) AS n FROM officer_credentials').first<{ n: number }>();
-  return row?.n || 0;
+export async function countCredentials(): Promise<number> {
+  await ensureReady();
+  const rows = await sql<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM officer_credentials`;
+  return rows[0]?.n || 0;
 }
 
-export async function getCredentialByOfficerId(db: D1Database, officerId: string): Promise<OfficerCredentialRow | null> {
-  await ensureReady(db);
-  const row = await db.prepare('SELECT * FROM officer_credentials WHERE officer_id = ?').bind(officerId).first<OfficerCredentialRow>();
-  return row || null;
+export async function getCredentialByOfficerId(officerId: string): Promise<OfficerCredentialRow | null> {
+  await ensureReady();
+  const rows = await sql`SELECT * FROM officer_credentials WHERE officer_id = ${officerId}`;
+  return (rows[0] as OfficerCredentialRow) || null;
 }
 
-export async function getCredentialByEmail(db: D1Database, email: string): Promise<OfficerCredentialRow | null> {
-  await ensureReady(db);
-  const row = await db.prepare('SELECT * FROM officer_credentials WHERE LOWER(email) = LOWER(?)').bind(email.trim()).first<OfficerCredentialRow>();
-  return row || null;
+export async function getCredentialByEmail(email: string): Promise<OfficerCredentialRow | null> {
+  await ensureReady();
+  const rows = await sql`SELECT * FROM officer_credentials WHERE LOWER(email) = LOWER(${email.trim()})`;
+  return (rows[0] as OfficerCredentialRow) || null;
 }
 
-export async function listCredentialsMeta(db: D1Database): Promise<Omit<OfficerCredentialRow, 'password_hash' | 'password_salt'>[]> {
-  await ensureReady(db);
-  const { results } = await db
-    .prepare('SELECT officer_id, email, iterations, failed_attempts, locked_until, must_change, updated_at FROM officer_credentials')
-    .all<Omit<OfficerCredentialRow, 'password_hash' | 'password_salt'>>();
-  return results || [];
+export async function listCredentialsMeta(): Promise<Omit<OfficerCredentialRow, 'password_hash' | 'password_salt'>[]> {
+  await ensureReady();
+  const rows = await sql`
+    SELECT officer_id, email, iterations, failed_attempts, locked_until, must_change, updated_at
+    FROM officer_credentials
+  `;
+  return rows as any;
 }
 
 export async function upsertCredential(
-  db: D1Database,
   officerId: string,
   email: string,
   hash: string,
@@ -272,55 +264,51 @@ export async function upsertCredential(
   iterations: number,
   mustChange: boolean
 ): Promise<void> {
-  await ensureReady(db);
-  await db
-    .prepare(
-      `INSERT INTO officer_credentials (officer_id, email, password_hash, password_salt, iterations, failed_attempts, locked_until, must_change, updated_at)
-       VALUES (?, ?, ?, ?, ?, 0, NULL, ?, CURRENT_TIMESTAMP)
-       ON CONFLICT(officer_id) DO UPDATE SET
-         email = excluded.email,
-         password_hash = excluded.password_hash,
-         password_salt = excluded.password_salt,
-         iterations = excluded.iterations,
-         failed_attempts = 0,
-         locked_until = NULL,
-         must_change = excluded.must_change,
-         updated_at = CURRENT_TIMESTAMP`
-    )
-    .bind(officerId, email.trim(), hash, salt, iterations, mustChange ? 1 : 0)
-    .run();
+  await ensureReady();
+  await sql`
+    INSERT INTO officer_credentials (officer_id, email, password_hash, password_salt, iterations, failed_attempts, locked_until, must_change, updated_at)
+    VALUES (${officerId}, ${email.trim()}, ${hash}, ${salt}, ${iterations}, 0, NULL, ${mustChange ? 1 : 0}, now())
+    ON CONFLICT (officer_id) DO UPDATE SET
+      email = EXCLUDED.email,
+      password_hash = EXCLUDED.password_hash,
+      password_salt = EXCLUDED.password_salt,
+      iterations = EXCLUDED.iterations,
+      failed_attempts = 0,
+      locked_until = NULL,
+      must_change = EXCLUDED.must_change,
+      updated_at = now()
+  `;
 }
 
-export async function recordFailedLogin(db: D1Database, officerId: string, maxAttempts: number, lockoutMinutes: number): Promise<void> {
-  await ensureReady(db);
-  const row = await getCredentialByOfficerId(db, officerId);
+export async function recordFailedLogin(officerId: string, maxAttempts: number, lockoutMinutes: number): Promise<void> {
+  await ensureReady();
+  const row = await getCredentialByOfficerId(officerId);
   if (!row) return;
   const attempts = row.failed_attempts + 1;
   const lockUntil = attempts >= maxAttempts
     ? new Date(Date.now() + lockoutMinutes * 60_000).toISOString()
     : null;
-  await db
-    .prepare('UPDATE officer_credentials SET failed_attempts = ?, locked_until = ?, updated_at = CURRENT_TIMESTAMP WHERE officer_id = ?')
-    .bind(attempts, lockUntil, officerId)
-    .run();
+  await sql`
+    UPDATE officer_credentials
+    SET failed_attempts = ${attempts}, locked_until = ${lockUntil}, updated_at = now()
+    WHERE officer_id = ${officerId}
+  `;
 }
 
-export async function resetFailedLogins(db: D1Database, officerId: string): Promise<void> {
-  await ensureReady(db);
-  await db
-    .prepare('UPDATE officer_credentials SET failed_attempts = 0, locked_until = NULL, updated_at = CURRENT_TIMESTAMP WHERE officer_id = ?')
-    .bind(officerId)
-    .run();
+export async function resetFailedLogins(officerId: string): Promise<void> {
+  await ensureReady();
+  await sql`
+    UPDATE officer_credentials
+    SET failed_attempts = 0, locked_until = NULL, updated_at = now()
+    WHERE officer_id = ${officerId}
+  `;
 }
 
-export async function setPassword(db: D1Database, officerId: string, hash: string, salt: string, iterations: number, mustChange: boolean): Promise<void> {
-  await ensureReady(db);
-  await db
-    .prepare(
-      `UPDATE officer_credentials
-       SET password_hash = ?, password_salt = ?, iterations = ?, must_change = ?, failed_attempts = 0, locked_until = NULL, updated_at = CURRENT_TIMESTAMP
-       WHERE officer_id = ?`
-    )
-    .bind(hash, salt, iterations, mustChange ? 1 : 0, officerId)
-    .run();
+export async function setPassword(officerId: string, hash: string, salt: string, iterations: number, mustChange: boolean): Promise<void> {
+  await ensureReady();
+  await sql`
+    UPDATE officer_credentials
+    SET password_hash = ${hash}, password_salt = ${salt}, iterations = ${iterations}, must_change = ${mustChange ? 1 : 0}, failed_attempts = 0, locked_until = NULL, updated_at = now()
+    WHERE officer_id = ${officerId}
+  `;
 }
