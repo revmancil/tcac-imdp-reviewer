@@ -5,14 +5,27 @@
 //
 // Usage: npm run db:migrate   (reads DATABASE_URL from .env / .env.local)
 
-import 'dotenv/config'
+import { config as loadEnv } from 'dotenv'
 import postgres from 'postgres'
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const migrationsDir = path.join(__dirname, '..', 'migrations')
+const projectRoot = path.join(__dirname, '..')
+const migrationsDir = path.join(projectRoot, 'migrations')
+
+// dotenv's default `dotenv/config` import only loads a file literally named
+// `.env` — it does NOT know about `.env.local` (that convention comes from
+// Next.js/Vercel, not dotenv itself). Load `.env.local` first if present,
+// falling back to `.env`, so this matches what `vercel dev` reads.
+for (const file of ['.env.local', '.env']) {
+  const p = path.join(projectRoot, file)
+  if (existsSync(p)) {
+    loadEnv({ path: p })
+    break
+  }
+}
 
 const databaseUrl = process.env.DATABASE_URL
 if (!databaseUrl) {
