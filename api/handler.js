@@ -1661,7 +1661,14 @@ var src_default = app;
 
 // server/vercel-app.ts
 var config = {
-  runtime: "nodejs"
+  runtime: "nodejs",
+  // Default function timeout (10s on Hobby, 15s on Pro) is too short for a
+  // cold-start OCR request on /api/candidates/parse-application -- it needs
+  // to download tesseract.js's language model on first use, then render and
+  // OCR two PDF pages. 60s is the maximum allowed on the Hobby plan; raise
+  // it further if the account is on Pro/Enterprise and cold starts still run
+  // long.
+  maxDuration: 60
 };
 var fetch = handle(src_default);
 export {

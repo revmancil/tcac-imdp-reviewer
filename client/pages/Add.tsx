@@ -347,16 +347,16 @@ function ApplicationUpload({
         </div>
       </div>
       <div
-        className={`upload-dropzone ${dragOver ? 'upload-dropzone-over' : ''}`}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+        className={`upload-dropzone ${dragOver ? 'upload-dropzone-over' : ''} ${parsing ? 'upload-dropzone-busy' : ''}`}
+        onDragOver={(e) => { e.preventDefault(); if (!parsing) setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { e.preventDefault(); setDragOver(false); onUpload(e.dataTransfer.files[0]) }}
-        onClick={() => inputRef.current?.click()}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!parsing) onUpload(e.dataTransfer.files[0]) }}
+        onClick={() => { if (!parsing) inputRef.current?.click() }}
       >
-        <input ref={inputRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => onUpload(e.target.files?.[0])} />
-        <div className="dz-icon"><Icon name="file" size={40} /></div>
+        <input ref={inputRef} type="file" accept="application/pdf" style={{ display: 'none' }} disabled={parsing} onChange={(e) => onUpload(e.target.files?.[0])} />
+        <div className="dz-icon">{parsing ? <span className="dz-spinner" /> : <Icon name="file" size={40} />}</div>
         <div className="dz-title">{parsing ? 'Reading application…' : 'Upload Application PDF'}</div>
-        <div className="dz-drop-line">Drag &amp; drop a PDF here, or <b>click to browse</b></div>
+        <div className="dz-drop-line">{parsing ? 'This can take up to a minute on the first upload' : <>Drag &amp; drop a PDF here, or <b>click to browse</b></>}</div>
         <div className="dz-role">Fields are parsed automatically — you'll review everything before the record is created</div>
       </div>
       {parseError && <div className="ff-error" style={{ marginTop: 10 }}>{parseError}</div>}
