@@ -14,7 +14,6 @@ var REQUIRED_DOCS = [
   { key: "enrollmentLetter", label: "Enrollment / Academic Standing Letter", short: "Enrollment", pages: 1, collegiateOnly: true },
   { key: "medical", label: "Medical Release", short: "Medical", pages: 2 },
   { key: "voter", label: "Voter Registration", short: "Voter", pages: 1 },
-  { key: "financial", label: "Financial Commitment Form", short: "Financial", pages: 2 },
   { key: "nda", label: "Non-Disclosure Agreement", short: "NDA", pages: 2 },
   { key: "headshot", label: "Headshot", short: "Photo", pages: 1 }
 ];
@@ -338,7 +337,6 @@ I believe I possess the strengths, humility, and drive to grow alongside the dis
     medical: { file: NAZHIR_FILES.medical },
     voter: { file: NAZHIR_FILES.voter },
     nda: { present: false, valid: false, note: "Awaiting NDA execution", file: null },
-    financial: { present: false, valid: false, note: "Awaiting fee payment \xB7 Balance $0.00 (paid, awaiting form)", file: null },
     headshot: { present: true, valid: true, note: null, file: null }
   }),
   reviewer: "Bro. C. Freeman",
@@ -430,12 +428,11 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. Anthony Reeves", chapter: "Xi Kappa Lambda", initDate: "Fall 1994", role: "Financial Secretary", email: "reeves@zetakappalambda.org", phone: "(713) 555-0403", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Damon T. Ellsworth", chapter: "Beta Tau Lambda", initDate: "Fall 1999", role: "Chapter President", email: "ellsworth@piiotalambda.org", phone: "(832) 555-0503", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.24 \u2265 2.50" }, signatures: { pass: false, value: "Financial form missing signature on p.2" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "3.24 \u2265 2.50" }, signatures: { pass: false, value: "Signature verification pending on outstanding documents" }, dates: { pass: true, value: "All dates within window" } },
     workflow: fullWorkflow({ membershipFees: { done: false, value: "Balance: $95.00" }, ddApproval: { done: false }, hqApproval: { done: false }, medicalReceived: { done: false }, transcriptReceived: { done: false }, pretest: { done: true, value: "100%" } }),
     docs: baseDocs("collegiate", {
       nda: { present: false, valid: false, note: "NDA not received", file: null },
-      transcript: { present: false, valid: false, note: "Not received from registrar", file: null },
-      financial: { present: true, valid: false, note: "Missing signature \u2014 page 2", file: null }
+      transcript: { present: false, valid: false, note: "Not received from registrar", file: null }
     }),
     lastActivity: "2026-07-30"
   }),
@@ -1311,21 +1308,37 @@ async function extractLetterTexts(pdfBytes) {
     const png = await renderPageToPNG(doc, pageIndex);
     const { data } = await worker.recognize(Buffer.from(png));
     const text = data.text;
-    const sponsorMatch = text.match(/Sponsor:\s*[^\n]*\n/i);
-    const recommenderMatch = text.match(/Recommender:\s*[^\n]*\n/i);
+    const sponsorMatch = text.match(/Sponsor:\s*([^\n]*)\n/i);
+    const recommenderMatch = text.match(/Recommender:\s*([^\n]*)\n/i);
     const result = {};
     if (sponsorMatch) {
       const start = sponsorMatch.index + sponsorMatch[0].length;
       const end = recommenderMatch ? recommenderMatch.index : text.length;
       const body = clean(text.slice(start, end));
       if (body) result.sponsorLetter = body;
+      if (sponsorMatch[1].trim()) result.sponsorName = reverseNameToDisplay(sponsorMatch[1]);
     }
     if (recommenderMatch) {
       const start = recommenderMatch.index + recommenderMatch[0].length;
       const body = clean(text.slice(start));
       if (body) result.recommenderLetter = body;
+      if (recommenderMatch[1].trim()) result.recommenderName = reverseNameToDisplay(recommenderMatch[1]);
     }
     return result;
+  } finally {
+    await worker.terminate();
+  }
+}
+var MEMBERSHIP_FEES_RE = /Membership Fees\s*\(?\s*Bal(?:ance)?:?\s*\$?\s*([\d,]+\.\d{2})\)?/i;
+async function extractMembershipFeesBalance(pdfBytes) {
+  const doc = mupdf.Document.openDocument(pdfBytes, "application/pdf");
+  const langPath = process.env.TESSERACT_LANG_PATH;
+  const worker = await createWorker("eng", 1, langPath ? { langPath, cachePath: langPath, gzip: true } : void 0);
+  try {
+    const png = await renderPageToPNG(doc, 0);
+    const { data } = await worker.recognize(Buffer.from(png));
+    const match = data.text.match(MEMBERSHIP_FEES_RE);
+    return match ? parseFloat(match[1].replace(/,/g, "")) : void 0;
   } finally {
     await worker.terminate();
   }
@@ -1840,17 +1853,34 @@ app.post("/candidates/:id/docs/:docKey", async (c) => {
     const current = updated;
     try {
       if (docKey === "application") {
-        const { sponsorLetter, recommenderLetter } = await extractLetterTexts(new Uint8Array(originalBytes));
+        const [{ sponsorName, sponsorLetter, recommenderName, recommenderLetter }, feesBalance] = await Promise.all([
+          extractLetterTexts(new Uint8Array(originalBytes)),
+          extractMembershipFeesBalance(new Uint8Array(originalBytes))
+        ]);
         const fields = {};
-        if (sponsorLetter && current.sponsor) fields.sponsor = { ...current.sponsor, letter: sponsorLetter };
-        if (recommenderLetter && current.recommender) fields.recommender = { ...current.recommender, letter: recommenderLetter };
+        const attachLetter = (existing, name, letter, role) => {
+          if (!letter) return void 0;
+          if (existing) return { ...existing, letter };
+          if (!name) return void 0;
+          return { name, chapter: "Pending confirmation", role: "Chapter Brother", email: "", phone: "", relationship: `${role} \xB7 Chapter Brother`, letter };
+        };
+        const sponsor = attachLetter(current.sponsor, sponsorName, sponsorLetter, "Sponsor");
+        if (sponsor) fields.sponsor = sponsor;
+        const recommender = attachLetter(current.recommender, recommenderName, recommenderLetter, "Recommender");
+        if (recommender) fields.recommender = recommender;
+        if (feesBalance !== void 0) {
+          fields.workflow = {
+            ...current.workflow,
+            membershipFees: { done: feesBalance === 0, value: `Balance: $${feesBalance.toFixed(2)}` }
+          };
+        }
         if (Object.keys(fields).length) updated = await updateCandidateFields(id, fields) || updated;
       } else if (docKey === "essay") {
         const essayText = await extractPdfText(new Uint8Array(originalBytes));
         if (essayText.trim()) updated = await updateCandidateFields(id, { essayText }) || updated;
       }
     } catch (err) {
-      console.error("Letter/essay text extraction failed", err);
+      console.error("Letter/essay/fees extraction failed", err);
     }
   }
   await logAudit(

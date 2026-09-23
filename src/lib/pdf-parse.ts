@@ -215,7 +215,9 @@ function reverseNameToDisplay(raw: string): string {
 // ---------------------------------------------------------------------------
 
 export interface ExtractedLetters {
+  sponsorName?: string
   sponsorLetter?: string
+  recommenderName?: string
   recommenderLetter?: string
 }
 
@@ -236,8 +238,13 @@ export async function extractLetterTexts(pdfBytes: Uint8Array): Promise<Extracte
     const { data } = await worker.recognize(Buffer.from(png))
     const text = data.text
 
-    const sponsorMatch = text.match(/Sponsor:\s*[^\n]*\n/i)
-    const recommenderMatch = text.match(/Recommender:\s*[^\n]*\n/i)
+    // Each heading is "Sponsor: <Name>" / "Recommender: <Name>" -- capture
+    // the name here too (not just page 1's header block) so a letter can
+    // still be attached even if the candidate has no sponsor/recommender
+    // on file yet (e.g. the application was uploaded before either was
+    // assigned).
+    const sponsorMatch = text.match(/Sponsor:\s*([^\n]*)\n/i)
+    const recommenderMatch = text.match(/Recommender:\s*([^\n]*)\n/i)
 
     const result: ExtractedLetters = {}
     if (sponsorMatch) {
@@ -245,13 +252,36 @@ export async function extractLetterTexts(pdfBytes: Uint8Array): Promise<Extracte
       const end = recommenderMatch ? recommenderMatch.index! : text.length
       const body = clean(text.slice(start, end))
       if (body) result.sponsorLetter = body
+      if (sponsorMatch[1].trim()) result.sponsorName = reverseNameToDisplay(sponsorMatch[1])
     }
     if (recommenderMatch) {
       const start = recommenderMatch.index! + recommenderMatch[0].length
       const body = clean(text.slice(start))
       if (body) result.recommenderLetter = body
+      if (recommenderMatch[1].trim()) result.recommenderName = reverseNameToDisplay(recommenderMatch[1])
     }
     return result
+  } finally {
+    await worker.terminate()
+  }
+}
+
+// The application's own status page already states the fees balance as
+// "Membership Fees (Bal: $X.XX)" -- read directly off page 1, rather than
+// requiring a separate "Financial Commitment Form" upload. A balance of
+// $0.00 means fees are paid; anything above that means they're still
+// pending.
+const MEMBERSHIP_FEES_RE = /Membership Fees\s*\(?\s*Bal(?:ance)?:?\s*\$?\s*([\d,]+\.\d{2})\)?/i
+
+export async function extractMembershipFeesBalance(pdfBytes: Uint8Array): Promise<number | undefined> {
+  const doc = mupdf.Document.openDocument(pdfBytes, 'application/pdf')
+  const langPath = process.env.TESSERACT_LANG_PATH
+  const worker = await createWorker('eng', 1, langPath ? { langPath, cachePath: langPath, gzip: true } : undefined)
+  try {
+    const png = await renderPageToPNG(doc, 0)
+    const { data } = await worker.recognize(Buffer.from(png))
+    const match = data.text.match(MEMBERSHIP_FEES_RE)
+    return match ? parseFloat(match[1].replace(/,/g, '')) : undefined
   } finally {
     await worker.terminate()
   }

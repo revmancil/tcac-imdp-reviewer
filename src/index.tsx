@@ -13,7 +13,7 @@ import {
   officerCanSeeArea,
   getChapter,
 } from '../shared/reference.js'
-import type { OfficerPublic, Candidate } from '../shared/types.js'
+import type { OfficerPublic, Candidate, Brother } from '../shared/types.js'
 import { readSession, setSession, clearSession } from './lib/session.js'
 import {
   listCandidates,
@@ -37,7 +37,7 @@ import { putFile, getFile } from './lib/storage.js'
 import { makeCandidate, parseCandidateCSV, buildCSVTemplate } from './lib/candidate-factory.js'
 import { hashPassword, verifyPassword, randomTempPassword } from './lib/password.js'
 import { OFFICER_EMAILS, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth.js'
-import { extractHeadshot, parseApplicationFields, extractLetterTexts, extractPdfText } from './lib/pdf-parse.js'
+import { extractHeadshot, parseApplicationFields, extractLetterTexts, extractPdfText, extractMembershipFeesBalance } from './lib/pdf-parse.js'
 import { redactSensitiveInfo } from './lib/redact.js'
 
 const app = new Hono().basePath('/api')
@@ -505,26 +505,48 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
   }
   let updated = await updateCandidateDoc(id, docKey, doc)
 
-  // Pull the sponsor/recommender letter text (from the application) or the
-  // essay text out for the 300-word minimum check. Runs off the original
-  // (pre-redaction) bytes -- best-effort, extracted from whatever layout
-  // this upload actually has; a miss here just means the word count isn't
-  // shown yet, not a blocked upload.
+  // Pull the sponsor/recommender letter text (and, failing that, at least
+  // their name) plus the membership fees balance out of the application, or
+  // the essay text out of the essay, for the 300-word minimum check and the
+  // fees status. Runs off the original (pre-redaction) bytes -- best-effort,
+  // extracted from whatever layout this upload actually has; a miss here
+  // just means the word count/fees status isn't shown yet, not a blocked
+  // upload.
   if (contentType === 'application/pdf' && updated) {
     const current = updated
     try {
       if (docKey === 'application') {
-        const { sponsorLetter, recommenderLetter } = await extractLetterTexts(new Uint8Array(originalBytes))
+        const [{ sponsorName, sponsorLetter, recommenderName, recommenderLetter }, feesBalance] = await Promise.all([
+          extractLetterTexts(new Uint8Array(originalBytes)),
+          extractMembershipFeesBalance(new Uint8Array(originalBytes)),
+        ])
         const fields: Partial<Candidate> = {}
-        if (sponsorLetter && current.sponsor) fields.sponsor = { ...current.sponsor, letter: sponsorLetter }
-        if (recommenderLetter && current.recommender) fields.recommender = { ...current.recommender, letter: recommenderLetter }
+        const attachLetter = (existing: Brother | null, name: string | undefined, letter: string | undefined, role: 'Sponsor' | 'Recommender'): Brother | undefined => {
+          if (!letter) return undefined
+          if (existing) return { ...existing, letter }
+          if (!name) return undefined
+          // No sponsor/recommender on file yet (e.g. this application was
+          // uploaded before either was assigned) -- create a minimal record
+          // from the letter's own heading so the letter isn't just dropped.
+          return { name, chapter: 'Pending confirmation', role: 'Chapter Brother', email: '', phone: '', relationship: `${role} · Chapter Brother`, letter }
+        }
+        const sponsor = attachLetter(current.sponsor, sponsorName, sponsorLetter, 'Sponsor')
+        if (sponsor) fields.sponsor = sponsor
+        const recommender = attachLetter(current.recommender, recommenderName, recommenderLetter, 'Recommender')
+        if (recommender) fields.recommender = recommender
+        if (feesBalance !== undefined) {
+          fields.workflow = {
+            ...current.workflow,
+            membershipFees: { done: feesBalance === 0, value: `Balance: $${feesBalance.toFixed(2)}` },
+          }
+        }
         if (Object.keys(fields).length) updated = (await updateCandidateFields(id, fields)) || updated
       } else if (docKey === 'essay') {
         const essayText = await extractPdfText(new Uint8Array(originalBytes))
         if (essayText.trim()) updated = (await updateCandidateFields(id, { essayText })) || updated
       }
     } catch (err) {
-      console.error('Letter/essay text extraction failed', err)
+      console.error('Letter/essay/fees extraction failed', err)
     }
   }
 

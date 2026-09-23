@@ -1310,38 +1310,6 @@ input, select, textarea { font-family: inherit; }
   margin-top: 20px;
 }
 
-/* Fee table */
-.fee-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  margin: 12px 0;
-}
-.fee-table th {
-  text-align: left;
-  padding: 8px 10px;
-  background: var(--paper);
-  font-family: 'Playfair Display', serif;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  border-bottom: 1.5px solid var(--ink);
-}
-.fee-table td {
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--line-soft);
-}
-.fee-table td:last-child {
-  text-align: right;
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-}
-.fee-total {
-  background: var(--paper);
-  font-weight: 700;
-}
-.fee-total td { border-top: 1.5px solid var(--ink); border-bottom: none; }
-
 /* ==========================================================================
    Checklist sidebar
    ========================================================================== */

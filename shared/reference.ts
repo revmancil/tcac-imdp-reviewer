@@ -21,7 +21,6 @@ export const REQUIRED_DOCS: RequiredDocDef[] = [
   { key: 'enrollmentLetter', label: 'Enrollment / Academic Standing Letter', short: 'Enrollment', pages: 1, collegiateOnly: true },
   { key: 'medical', label: 'Medical Release', short: 'Medical', pages: 2 },
   { key: 'voter', label: 'Voter Registration', short: 'Voter', pages: 1 },
-  { key: 'financial', label: 'Financial Commitment Form', short: 'Financial', pages: 2 },
   { key: 'nda', label: 'Non-Disclosure Agreement', short: 'NDA', pages: 2 },
   { key: 'headshot', label: 'Headshot', short: 'Photo', pages: 1 },
 ];

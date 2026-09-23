@@ -239,50 +239,6 @@ export function DocContent({ docKey, candidate, chapter }: { docKey: string; can
         </div>
       )
 
-    case 'financial':
-      return (
-        <div className="paper">
-          <div className="paper-header">
-            <div>
-              <div className="paper-title">FINANCIAL COMMITMENT FORM</div>
-              <div className="paper-sub">{chapter.type === 'alumni' ? 'Alumni Membership · Financial Obligations' : 'Undergraduate Intake · Financial Obligations'}</div>
-            </div>
-          </div>
-          <div className="paper-hr" />
-          <div className="paper-fields">
-            <Field label="Candidate" value={candidate.name} />
-            <Field label="Chapter" value={`${chapter.name} · Area ${chapter.area}`} />
-          </div>
-          <table className="fee-table">
-            <thead><tr><th>Line Item</th><th>Amount</th></tr></thead>
-            <tbody>
-              <tr><td>General Organization Fee</td><td>$525.00</td></tr>
-              <tr><td>Southwestern Region Assessment</td><td>$185.00</td></tr>
-              <tr><td>TCAC Assessment</td><td>$95.00</td></tr>
-              <tr><td>Chapter Intake Fee</td><td>{chapter.type === 'alumni' ? '$550.00' : '$450.00'}</td></tr>
-              <tr><td>First-Year Dues (prorated)</td><td>$240.00</td></tr>
-              <tr className="fee-total"><td>Total Due Upon Selection</td><td>{chapter.type === 'alumni' ? '$1,595.00' : '$1,495.00'}</td></tr>
-            </tbody>
-          </table>
-          <div className="paper-attest">
-            I acknowledge the financial obligations above and affirm that I have the means to fulfill them by the schedule set forth by the chapter's Dean of Intake.
-          </div>
-          <div className="paper-sig-row">
-            <div className="sig-field">
-              <div className="sig-line">
-                {candidate.docs.financial.valid ? (
-                  <span className="sig-mark">{candidate.name.split(' ').map((w) => w[0]).join('.')}</span>
-                ) : (
-                  <span className="sig-mark missing">— missing signature —</span>
-                )}
-              </div>
-              <div className="sig-caption">Candidate Signature (p. 2)</div>
-            </div>
-            <div className="sig-field"><div className="sig-line"><span className="sig-mark date">{candidate.submitted}</span></div><div className="sig-caption">Date</div></div>
-          </div>
-        </div>
-      )
-
     case 'headshot':
       return (
         <div className="paper headshot-page">
