@@ -60,6 +60,12 @@ export interface RequiredDocDef {
   // (e.g. the enrollment letter only makes sense for active students).
   // Absent means it applies to everyone.
   collegiateOnly?: boolean;
+  // Shown as a persistent reminder wherever this document is reviewed or
+  // uploaded (e.g. "must be hand-signed, not typed/electronic"). There's no
+  // reliable automated way to tell a real signature from a typed/electronic
+  // one on a scanned form, so this is a policy note for the reviewing
+  // officer, not an automated check.
+  signaturePolicy?: string;
 }
 
 export interface DocState {

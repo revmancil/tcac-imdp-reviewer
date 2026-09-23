@@ -11,10 +11,29 @@ var REQUIRED_DOCS = [
   { key: "essay", label: "Candidate Essay", short: "Essay", pages: 3 },
   { key: "resume", label: "Candidate Resume", short: "Resume", pages: 2 },
   { key: "transcript", label: "Official Transcript", short: "Transcript", pages: 3 },
-  { key: "enrollmentLetter", label: "Enrollment / Academic Standing Letter", short: "Enrollment", pages: 1, collegiateOnly: true },
-  { key: "medical", label: "Medical Release", short: "Medical", pages: 2 },
+  {
+    key: "enrollmentLetter",
+    label: "Enrollment / Academic Standing Letter",
+    short: "Enrollment",
+    pages: 1,
+    collegiateOnly: true,
+    signaturePolicy: "Must bear a handwritten signature from the Office of the Registrar \u2014 a typed or electronic signature is not accepted."
+  },
+  {
+    key: "medical",
+    label: "Medical Release",
+    short: "Medical",
+    pages: 2,
+    signaturePolicy: "Requires the candidate\u2019s handwritten signature \u2014 a typed or electronic signature is not accepted."
+  },
   { key: "voter", label: "Voter Registration", short: "Voter", pages: 1 },
-  { key: "nda", label: "Non-Disclosure Agreement", short: "NDA", pages: 2 },
+  {
+    key: "nda",
+    label: "Non-Disclosure Agreement",
+    short: "NDA",
+    pages: 2,
+    signaturePolicy: "Requires the candidate\u2019s handwritten signature \u2014 a typed or electronic signature is not accepted."
+  },
   { key: "headshot", label: "Headshot", short: "Photo", pages: 1 }
 ];
 function requiredDocsFor(chapterType) {

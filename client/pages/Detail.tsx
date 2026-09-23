@@ -6,7 +6,7 @@ import { api } from '../api'
 import { DocContent, mockEssayParagraphs } from './DocContent'
 import { requiredDocsFor } from '../../shared/reference'
 import { countWords, MIN_ESSAY_WORDS } from '../../shared/word-count'
-import type { Brother, Candidate, DocState } from '../../shared/types'
+import type { Brother, Candidate, DocState, RequiredDocDef } from '../../shared/types'
 
 export default function Detail() {
   const { id } = useParams<{ id: string }>()
@@ -205,6 +205,9 @@ export default function Detail() {
                     {!doc?.note && doc?.present && doc.valid && <div className="checkrow-note">{d.pages} pg · Validated{doc.file ? ' · PDF attached' : ''}</div>}
                     {!doc?.note && !doc?.present && <div className="checkrow-note">Not received</div>}
                     {d.key === 'essay' && <EssayChecklistWordCount candidate={candidate} />}
+                    {d.signaturePolicy && (
+                      <div className="checkrow-policy"><Icon name="flag" size={10} /> {d.signaturePolicy}</div>
+                    )}
                   </div>
                 </div>
               )
@@ -295,7 +298,12 @@ function DocPreview({
   if (!meta) return null
 
   if (!doc?.present) {
-    return <UploadDropzone docKey={docKey} docLabel={meta.label} note={doc?.note} uploadedBy={candidate.name} onUpload={onUpload} uploading={uploading} />
+    return (
+      <div>
+        <SignaturePolicyNote meta={meta} />
+        <UploadDropzone docKey={docKey} docLabel={meta.label} note={doc?.note} uploadedBy={candidate.name} onUpload={onUpload} uploading={uploading} />
+      </div>
+    )
   }
 
   if (replacing) {
@@ -305,6 +313,7 @@ function DocPreview({
           <div><b>Replacing {meta.label}</b> — the existing file will be superseded by the new upload. History is preserved.</div>
           <button className="btn-secondary sm" onClick={onCancelReplace}>Cancel</button>
         </div>
+        <SignaturePolicyNote meta={meta} />
         <UploadDropzone docKey={docKey} docLabel={meta.label + ' (new version)'} note="Drop the replacement file below" uploadedBy={candidate.name} onUpload={onUpload} uploading={uploading} isReplace />
       </div>
     )
@@ -324,6 +333,7 @@ function DocPreview({
               <a href={doc.file} target="_blank" rel="noopener" className="tool-btn"><Icon name="download" size={13} /> Open in New Tab</a>
             </div>
           </div>
+          <SignaturePolicyNote meta={meta} />
           {docKey === 'essay' && <EssayWordCount candidate={candidate} />}
           {docKey === 'headshot' ? (
             <div className="headshot-page">
@@ -344,6 +354,7 @@ function DocPreview({
 
   return (
     <div className="doc-canvas">
+      <SignaturePolicyNote meta={meta} />
       {docKey === 'essay' && <EssayWordCount candidate={candidate} />}
       <div className="doc-page">
         <DocContent docKey={docKey} candidate={candidate} chapter={chapter} />
@@ -356,6 +367,16 @@ function DocPreview({
           <button className="tool-btn"><Icon name="download" size={13} /> Download PDF</button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function SignaturePolicyNote({ meta }: { meta: RequiredDocDef }) {
+  if (!meta.signaturePolicy) return null
+  return (
+    <div className="doc-flag-annot doc-flag-inline doc-policy-note">
+      <Icon name="flag" size={14} />
+      <span>{meta.signaturePolicy}</span>
     </div>
   )
 }
