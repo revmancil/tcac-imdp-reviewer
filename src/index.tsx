@@ -39,8 +39,20 @@ import { hashPassword, verifyPassword, randomTempPassword } from './lib/password
 import { OFFICER_EMAILS, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth.js'
 import { extractHeadshot, parseApplicationFields, extractLetterTexts, extractPdfText, extractMembershipFeesBalance } from './lib/pdf-parse.js'
 import { redactSensitiveInfo } from './lib/redact.js'
+import { countWords, MIN_ESSAY_WORDS } from '../shared/word-count.js'
 
 const app = new Hono().basePath('/api')
+
+// Documents that require a real signature or school seal to be valid --
+// something OCR can't reliably confirm -- so a fresh upload starts flagged
+// for officer verification rather than assumed valid. See the "Flag for
+// Review" / "Clear Flag" doc endpoint for how an officer resolves this.
+const NEEDS_VERIFICATION_NOTES: Record<string, string> = {
+  transcript: 'Needs officer verification: must include a signature or the school seal.',
+  enrollmentLetter: 'Needs officer verification: must be signed by the Office of the Registrar.',
+  medical: 'Needs officer verification: must be signed by both the candidate and the physician.',
+  nda: "Needs officer verification: must be signed by the candidate, and by a parent/guardian if the candidate is under 18.",
+}
 
 app.use('*', cors())
 
@@ -496,10 +508,18 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
   await putFile(key, bytes, contentType)
 
   const wasReplaced = !!candidate.docs[docKey]?.file
+  const uploadNote = wasReplaced ? `Replaced · ${file.name} · ${(file.size / 1024).toFixed(0)} KB` : `Uploaded ${file.name} · ${(file.size / 1024).toFixed(0)} KB`
+  // These four require a real signature or seal to actually be valid, which
+  // isn't something OCR can reliably confirm (tried and proven unreliable on
+  // real multi-column scans -- see commit history). So instead of assuming
+  // they're fine, they start out flagged for officer verification; an
+  // officer clears the flag once they've actually looked at it (same
+  // Flag/Clear mechanism as a manually-caught problem on any other doc).
+  const needsVerification = NEEDS_VERIFICATION_NOTES[docKey]
   const doc = {
     present: true,
-    valid: true,
-    note: wasReplaced ? `Replaced · ${file.name} · ${(file.size / 1024).toFixed(0)} KB` : `Uploaded ${file.name} · ${(file.size / 1024).toFixed(0)} KB`,
+    valid: !needsVerification,
+    note: needsVerification || uploadNote,
     file: `/api/files/${key}`,
     uploadedAt: new Date().toISOString(),
   }
@@ -544,6 +564,15 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
       } else if (docKey === 'essay') {
         const essayText = await extractPdfText(new Uint8Array(originalBytes))
         if (essayText.trim()) updated = (await updateCandidateFields(id, { essayText })) || updated
+        const words = countWords(essayText)
+        const meetsMin = !!essayText.trim() && words >= MIN_ESSAY_WORDS
+        const essayNote = essayText.trim()
+          ? meetsMin
+            ? `${words} words`
+            : `Essay is ${words} words — below the ${MIN_ESSAY_WORDS}-word minimum`
+          : 'Could not read the essay text automatically — please confirm it meets the 300-word minimum manually'
+        const essayDoc = updated?.docs.essay || current.docs.essay
+        updated = (await updateCandidateDoc(id, docKey, { ...essayDoc, valid: meetsMin, note: essayNote })) || updated
       }
     } catch (err) {
       console.error('Letter/essay/fees extraction failed', err)

@@ -221,7 +221,8 @@ export default function Roster() {
           <tbody>
             {filtered.map((c) => {
               const comp = completeness(c)
-              const flags = Object.values(c.checks).filter((x) => x.pass === false).length
+              const flags = [c.checks.gpaMin, c.checks.signatures, c.checks.dates].filter((x) => x.pass === false).length
+                + (c.checks.sponsorRecommender.state === 'warn' || c.checks.sponsorRecommender.state === 'flag' ? 1 : 0)
               const ch = reference.chapters[c.chapterKey]
               return (
                 <tr key={c.id} onClick={() => navigate(`/candidates/${c.id}`)} className="row">
@@ -241,7 +242,7 @@ export default function Roster() {
                     </div>
                     <div className="cand-area">Area {ch?.area} · {ch?.city}</div>
                   </td>
-                  <td><span className={`gpa ${c.gpa < 2.5 ? 'gpa-fail' : ''}`}>{c.gpa.toFixed(2)}</span></td>
+                  <td><span className={`gpa ${c.gpa <= 2.5 ? 'gpa-fail' : ''}`}>{c.gpa.toFixed(2)}</span></td>
                   <td><CompletenessBar valid={comp.valid} total={comp.total} /></td>
                   <td>
                     {flags === 0 ? (

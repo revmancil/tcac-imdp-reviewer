@@ -5,6 +5,7 @@
 // before commit."
 
 import { CHAPTERS, requiredDocsFor, STATUS } from '../../shared/reference.js';
+import { computeSponsorRecommenderCheck } from '../../shared/word-count.js';
 import type { Candidate, DocState } from '../../shared/types.js';
 
 export interface ManualCandidateInput {
@@ -60,6 +61,31 @@ export function makeCandidate(input: ManualCandidateInput): Candidate {
     transcriptReceived: { done: false },
   };
 
+  const sponsor = input.sponsorName
+    ? {
+        name: input.sponsorName.startsWith('Bro.') ? input.sponsorName : `Bro. ${input.sponsorName}`,
+        chapter: 'Pending confirmation',
+        role: 'Chapter Brother',
+        email: '',
+        phone: '',
+        relationship: 'Sponsor · Chapter Brother',
+        letterLocation: 'Application PDF · Section: Sponsor (pending upload)',
+        letter: '',
+      }
+    : null;
+  const recommender = input.recommenderName
+    ? {
+        name: input.recommenderName.startsWith('Bro.') ? input.recommenderName : `Bro. ${input.recommenderName}`,
+        chapter: 'Pending confirmation',
+        role: 'Chapter Brother',
+        email: '',
+        phone: '',
+        relationship: 'Recommender · Chapter Brother',
+        letterLocation: 'Application PDF · Section: Recommender (pending upload)',
+        letter: '',
+      }
+    : null;
+
   return {
     id: String(input.id),
     fullId,
@@ -83,34 +109,13 @@ export function makeCandidate(input: ManualCandidateInput): Candidate {
     chapterKey: input.chapterKey,
     chapterType: chapter?.type || 'alumni',
     workflow,
-    sponsor: input.sponsorName
-      ? {
-          name: input.sponsorName.startsWith('Bro.') ? input.sponsorName : `Bro. ${input.sponsorName}`,
-          chapter: 'Pending confirmation',
-          role: 'Chapter Brother',
-          email: '',
-          phone: '',
-          relationship: 'Sponsor · Chapter Brother',
-          letterLocation: 'Application PDF · Section: Sponsor (pending upload)',
-          letter: '',
-        }
-      : null,
-    recommender: input.recommenderName
-      ? {
-          name: input.recommenderName.startsWith('Bro.') ? input.recommenderName : `Bro. ${input.recommenderName}`,
-          chapter: 'Pending confirmation',
-          role: 'Chapter Brother',
-          email: '',
-          phone: '',
-          relationship: 'Recommender · Chapter Brother',
-          letterLocation: 'Application PDF · Section: Recommender (pending upload)',
-          letter: '',
-        }
-      : null,
+    sponsor,
+    recommender,
     checks: {
-      gpaMin: { pass: gpa >= 2.5, value: gpa >= 2.5 ? `${gpa.toFixed(2)} ≥ 2.50` : `${gpa.toFixed(2)} < 2.50 minimum` },
+      gpaMin: { pass: gpa > 2.5, value: gpa > 2.5 ? `${gpa.toFixed(2)} > 2.50` : `${gpa.toFixed(2)} does not exceed the 2.50 minimum` },
       signatures: { pass: null, value: 'Awaiting document upload' },
       dates: { pass: null, value: 'Awaiting document upload' },
+      sponsorRecommender: computeSponsorRecommenderCheck(sponsor, recommender),
     },
     docs: emptyDocs,
     reviewer: '—',

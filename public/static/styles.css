@@ -697,6 +697,7 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .check-item { border-radius: 8px; border-left: 3px solid var(--line); }
 .check-item-ok { border-left-color: var(--ok); }
+.check-item-warn { border-left-color: var(--warn); background: var(--warn-bg); }
 .check-item-flag { border-left-color: var(--danger); background: #FEF7EF; }
 .check-item-pending { border-left-color: var(--text-3); }
 
@@ -710,12 +711,14 @@ input, select, textarea { font-family: inherit; }
   margin-bottom: 4px;
 }
 .check-item-ok .check-item-icon { color: var(--ok); }
+.check-item-warn .check-item-icon { color: var(--warn); }
 .check-item-flag .check-item-icon { color: var(--danger); }
 .check-item-pending .check-item-icon { color: var(--text-3); }
 .check-item-value {
   font-size: 17px;
   color: var(--text-2);
 }
+.check-item-warn .check-item-value { color: var(--warn); font-weight: 500; }
 .check-item-flag .check-item-value { color: var(--danger); font-weight: 500; }
 
 /* ==========================================================================

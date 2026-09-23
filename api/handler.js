@@ -231,6 +231,58 @@ function clearSession(c) {
 // src/lib/db.ts
 import postgres from "postgres";
 
+// shared/word-count.ts
+var MIN_ESSAY_WORDS = 300;
+function countWords(text) {
+  const trimmed = (text || "").trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).length;
+}
+function normalizeForCompare(text) {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+}
+function lettersAreDuplicate(a, b) {
+  const na = normalizeForCompare(a);
+  const nb = normalizeForCompare(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  const wordsA = new Set(na.split(" "));
+  const wordsB = new Set(nb.split(" "));
+  const intersection = [...wordsA].filter((w) => wordsB.has(w)).length;
+  const union = (/* @__PURE__ */ new Set([...wordsA, ...wordsB])).size;
+  return union > 0 && intersection / union >= 0.85;
+}
+function computeSponsorRecommenderCheck(sponsor, recommender) {
+  const sponsorLetter = sponsor?.letter?.trim() || "";
+  const recommenderLetter = recommender?.letter?.trim() || "";
+  if (!sponsor && !recommender) {
+    return { state: "flag", value: "Neither a sponsor nor a recommender has been assigned" };
+  }
+  if (!sponsor || !sponsorLetter) {
+    return { state: "flag", value: "Sponsor letter has not been submitted" };
+  }
+  if (!recommender || !recommenderLetter) {
+    return { state: "flag", value: "Recommender letter has not been submitted" };
+  }
+  const sponsorWords = countWords(sponsorLetter);
+  const recommenderWords = countWords(recommenderLetter);
+  const sponsorShort = sponsorWords < MIN_ESSAY_WORDS;
+  const recommenderShort = recommenderWords < MIN_ESSAY_WORDS;
+  if (sponsorShort && recommenderShort) {
+    return { state: "warn", value: `Both letters are under ${MIN_ESSAY_WORDS} words (sponsor: ${sponsorWords}, recommender: ${recommenderWords})` };
+  }
+  if (sponsorShort) {
+    return { state: "warn", value: `Sponsor letter is ${sponsorWords} words \u2014 below the ${MIN_ESSAY_WORDS}-word minimum` };
+  }
+  if (recommenderShort) {
+    return { state: "warn", value: `Recommender letter is ${recommenderWords} words \u2014 below the ${MIN_ESSAY_WORDS}-word minimum` };
+  }
+  if (lettersAreDuplicate(sponsorLetter, recommenderLetter)) {
+    return { state: "warn", value: "Sponsor and recommender letters appear to be the same text \u2014 they must be distinct" };
+  }
+  return { state: "ok", value: `Sponsor ${sponsorWords} words \xB7 Recommender ${recommenderWords} words \xB7 both distinct` };
+}
+
 // shared/seed-candidates.ts
 function baseDocs(chapterType, overrides = {}) {
   const base = {};
@@ -251,6 +303,10 @@ var NAZHIR_FILES = {
   voter: "/static/pdfs/2897040/Voter.pdf"
 };
 var genericLetter = (kind) => kind === "sponsor" ? "Brothers of the Committee, it is my honor to formally sponsor this candidate for membership in Alpha Phi Alpha Fraternity, Inc. I have known this candidate personally and take responsibility for their character and readiness. \u2014 [Full sponsor letter embedded in Section: Sponsor of the application PDF.]" : "Brothers of the Committee, I write in strong recommendation of this candidate. I have observed their scholarship, service, and comportment among men of substance. \u2014 [Full recommendation embedded in Section: Recommender of the application PDF.]";
+var GENERIC_SPONSOR_RECOMMENDER_CHECK = computeSponsorRecommenderCheck(
+  { name: "", chapter: "", role: "", email: "", phone: "", relationship: "", letter: genericLetter("sponsor") },
+  { name: "", chapter: "", role: "", email: "", phone: "", relationship: "", letter: genericLetter("recommender") }
+);
 var fullWorkflow = (overrides = {}) => ({
   pretest: { done: true },
   appSubmitted: { done: true },
@@ -316,7 +372,7 @@ var NAZHIR = {
     phone: "(214) 555-0140",
     relationship: "Sponsor \xB7 Chapter Brother",
     letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)",
-    letter: "Greetings, Sponsorship is not just providing support. It's an investment into the promise of tomorrow and a belief in potential. I am Brother Roderick L. Sibley, and it is with great enthusiasm that I submit this letter, acknowledging my sponsorship of Mr. Nazhir D. Carter. My personal commitment to support Nazhir is influenced by the essence of our mission, supporting his ambitions to serve with others, promoting academic excellence, encouraging personal growth, and upholding the dignity of himself and other individuals. When I think about a young man who best exemplifies being an overcomer, when faced with obstacles and adversity, that is Nazhir Carter. One of the main compliments to this young man is that he hasn't allowed his disability to prevent him from accomplishing his goals and admirations in life. He excelled as a student athlete, while being an Honor student and has since continued to follow his dreams, leveraging his professional background to fuel his ambitions as a professional track and field athlete. He continues to impress me with his maturity, vision, and personal sense of responsibility towards making an impact on the world. His dedication to serving, passion for the arts, and his determination as an athlete is remarkable. Nazhir is a proud 2024 Cum Laude graduate of Prairie View A&M University (PVAMU) where he earned his B.A. in Mass Communications and a minor in Music. He achieved academic excellence as a Dean's List scholar and was inducted into multiple academic national honor societies within his area of study. Nazhir's academic achievements not only kept him on track to graduate on time but also graduated one hundred percent debt free, the first to achieve this status in his family. As an Academic Enrichment Specialist with Lewisville Independent School District, Nazhir has been responsible for developing engaging activities and innovative lesson plans that foster critical thinking and growth in middle school students."
+    letter: `Greetings, Sponsorship is not just providing support. It's an investment into the promise of tomorrow and a belief in potential. I am Brother Roderick L. Sibley, and it is with great enthusiasm that I submit this letter, acknowledging my sponsorship of Mr. Nazhir D. Carter. My personal commitment to support Nazhir is influenced by the essence of our mission, supporting his ambitions to serve with others, promoting academic excellence, encouraging personal growth, and upholding the dignity of himself and other individuals. When I think about a young man who best exemplifies being an overcomer, when faced with obstacles and adversity, that is Nazhir Carter. One of the main compliments to this young man is that he hasn't allowed his disability to prevent him from accomplishing his goals and admirations in life. He excelled as a student athlete, while being an Honor student and has since continued to follow his dreams, leveraging his professional background to fuel his ambitions as a professional track and field athlete. He continues to impress me with his maturity, vision, and personal sense of responsibility towards making an impact on the world. His dedication to serving, passion for the arts, and his determination as an athlete is remarkable. Nazhir is a proud 2024 Cum Laude graduate of Prairie View A&M University (PVAMU) where he earned his B.A. in Mass Communications and a minor in Music. He achieved academic excellence as a Dean's List scholar and was inducted into multiple academic national honor societies within his area of study. Nazhir's academic achievements not only kept him on track to graduate on time but also graduated one hundred percent debt free, the first to achieve this status in his family. As an Academic Enrichment Specialist with Lewisville Independent School District, Nazhir has been responsible for developing engaging activities and innovative lesson plans that foster critical thinking and growth in middle school students. However, his dedication to our youth extends beyond his commitment to the academic community. As a professional athlete, Nazhir carries a passion for youth development, which is evident through his roles as an Athletic Development Specialist, Youth Coach, and his work with the Texas Legends G League in Frisco, Tx. He has implemented programs that enhance performance while instilling confidence, leadership, and resilience in young athletes. Having the examples of his father, myself as his stepfather, and other influential men in his life who are members of Alpha Phi Alpha Fraternity, Inc. set the tone for his ambitions. He is a former member of Rho Nu Lambda's Alpha Scholars Mentoring Program, where he developed life skills and learned the importance of brotherhood. While at PVAMU, Nazhir was a member of the NAACP, National Association of Black Journalists (NABJ), and supported several community service initiatives, both on and off campus within the greater Houston area. Nazhir currently provides technical experience in audio/visual production and event coordination through active service in his church's media ministry. He's also worked with elementary school students within Carrollton/Farmers Branch ISD, has volunteered with the Karen Hands Foundation providing clothing and meals for underserved families within the Dallas area, and supported the G.I.F.T.4.S. Academy, affiliated with the Michael Finley Foundation. Nazhir is the epitome of the kind of young man that this world will need as a future leader and role model for his generation. His courageous approach to life and his faith will continue to allow him to excel. I have witnessed Nazhir's journey, maturing and preparing himself for greater opportunities. This is a young man who decided, "Faith without works is dead" and has pushed himself in areas where others have quit. I am honored to have the opportunity to serve as a sponsor for Mr. Nazhir Carter. Thank you for your time and consideration with this matter.`
   },
   recommender: {
     name: "Bro. Delbert C. Johnson",
@@ -327,7 +383,7 @@ var NAZHIR = {
     phone: "(214) 555-0155",
     relationship: "Recommender \xB7 Chapter Brother",
     letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)",
-    letter: "Does the candidate possess the character and moral reputation desired of a member of Alpha Phi Alpha Fraternity, Inc? To my brothers of Alpha Phi Alpha Fraternity, Inc. It is with pride that I submit my recommendation of Nazhir Carter as he pursues membership into our great fraternity. I've had the opportunity to watch Nazhir's growth from a scholarship recipient from my chapters Foundation for his academic excellence in pursuit of his scholastic endeavors, to graduating and becoming a thriving young man with grit, tenacity and passion for serving others in his community. His character and heart for underserved people says to me without any doubt he possess the character and reputation desired of any man seeking membership into our esteemed fraternal organization. Does the candidate possess academic, and leadership qualities desired of a member of Alpha Phi Alpha Fraternity, Inc? Yes, Nazhir is a proud graduate of Prairie View A&M University, where he earned a B.A. in Mass Communications, displaying academic excellence as a Dean's List scholar and being selected to become a member of multiple national honor societies within his area of study. Along with his academic accolades, Nazhir achieved remarkable success as a track and field student athlete, securing three (3) SWAC Championships, representing a high standard of discipline, teamwork, and perseverance. As a professional, Nazhir carries a passion for youth development that is evident through his roles as an Athletic Development Specialist, Youth Coach, and his work with the Texas Legends G League in Frisco, Tx."
+    letter: "Does the candidate possess the character and moral reputation desired of a member of Alpha Phi Alpha Fraternity, Inc? To my brothers of Alpha Phi Alpha Fraternity, Inc. It is with pride that I submit my recommendation of Nazhir Carter as he pursues membership into our great fraternity. I've had the opportunity to watch Nazhir's growth from a scholarship recipient from my chapters Foundation for his academic excellence in pursuit of his scholastic endeavors, to graduating and becoming a thriving young man with grit, tenacity and passion for serving others in his community. His character and heart for underserved people says to me without any doubt he possess the character and reputation desired of any man seeking membership into our esteemed fraternal organization. Does the candidate possess academic, and leadership qualities desired of a member of Alpha Phi Alpha Fraternity, Inc? Yes, Nazhir is a proud graduate of Prairie View A&M University, where he earned a B.A. in Mass Communications, displaying academic excellence as a Dean's List scholar and being selected to become a member of multiple national honor societies within his area of study. Along with his academic accolades, Nazhir achieved remarkable success as a track and field student athlete, securing three (3) SWAC Championships, representing a high standard of discipline, teamwork, and perseverance. As a professional, Nazhir carries a passion for youth development that is evident through his roles as an Athletic Development Specialist, Youth Coach, and his work with the Texas Legends G League in Frisco, Tx. He has implemented programs that enhance performance while instilling confidence, leadership and resilience in young athletes. In all, I do believe Nazhir possess the character, and leadership capabilities of an Alpha man. How are you acquainted with the candidate and describe the candidate's involvement in school/community? I became acquainted with Nazhir Carter in 2020 when he applied for a scholarship funded by The Onward and Upward Empowerment Foundation which is the 501c3 of the Rho Nu Lambda Chapter. During this time, I served as the chairman of the Scholarship Committee. His impressive academic record and essay awarded him a scholarship to pursue his education at Prairie View A&M University. After graduating, Nazhir returned to the DFW area has involved himself in the support of the very Foundation that awarded him through volunteerism and service to some of our Foundations partnerships. I've come to admire Nazhir's commitment to service to others and dedication to making positive changes in society. The core values of Nazhir I've come to know align with the aims of our fraternity, Manly Deeds, Scholarship and Love for all mankind."
   },
   // OCR'd from the real Essay.pdf on file for this candidate (see
   // extractPdfText in src/lib/pdf-parse.ts) -- future uploads populate this
@@ -344,9 +400,10 @@ When asked the question, why do I want to be a member of Alpha Phi Alpha Fratern
 
 I believe I possess the strengths, humility, and drive to grow alongside the distinguished men of Alpha Phi Alpha Fraternity, Inc, and I am committed to refining my weaknesses to become a better servant, leader, and brother. I understand that life will challenge us all but knowing that I could have a brother beside me, and be that brother for someone else, is a powerful source of strength and purpose. To me, brotherhood means loyalty without condition, empathy without judgment, and showing up when it matters most. That is the kind of man I strive to be, and the kind of presence I hope to bring to this esteemed fraternity. Thank you for your time, consideration, and for the opportunity to pursue membership in an organization that represents the very best of who I aspire to become.`,
   checks: {
-    gpaMin: { pass: true, value: "3.50 \u2265 2.50" },
+    gpaMin: { pass: true, value: "3.50 > 2.50" },
     signatures: { pass: true, value: "All required signatures present" },
-    dates: { pass: true, value: "All dates within window" }
+    dates: { pass: true, value: "All dates within window" },
+    sponsorRecommender: { state: "ok", value: "Sponsor 627 words \xB7 Recommender 432 words \xB7 both distinct" }
   },
   docs: baseDocs("alumni", {
     application: { file: NAZHIR_FILES.application },
@@ -379,7 +436,7 @@ I believe I possess the strengths, humility, and drive to grow alongside the dis
   featured: true
 };
 function person(overrides) {
-  return {
+  const candidate = {
     fullId: `TX-2026-${overrides.id}`,
     initials: overrides.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join(""),
     email: "",
@@ -397,6 +454,11 @@ function person(overrides) {
     reviewer: "Bro. C. Freeman",
     ...overrides
   };
+  candidate.checks = {
+    ...candidate.checks,
+    sponsorRecommender: computeSponsorRecommenderCheck(candidate.sponsor, candidate.recommender)
+  };
+  return candidate;
 }
 var SEED_CANDIDATES = [
   NAZHIR,
@@ -413,7 +475,7 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. Christopher Freeman", chapter: "Delta Sigma Lambda", initDate: "Spring 1995", role: "District DoM", email: "freeman@deltasigmalambda.org", phone: "(713) 555-0401", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Solomon Whitaker", chapter: "Pi Theta Lambda", initDate: "Fall 1992", role: "Historian", email: "whitaker@kappadeltalambda.org", phone: "(832) 555-0501", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.68 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "3.68 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow(),
     lastActivity: "2026-07-28"
   }),
@@ -430,7 +492,7 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. James O. Randolph", chapter: "Alpha Sigma Lambda", initDate: "Spring 2005", role: "Treasurer", email: "randolph@sigmalambda.org", phone: "(713) 555-0402", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Dr. Kwame Osei", chapter: "Alpha Eta Lambda", initDate: "Spring 1988", role: "Past District Director", email: "osei@alphaetalambda.org", phone: "(832) 555-0502", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.91 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "3.91 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow(),
     lastActivity: "2026-07-29"
   }),
@@ -447,7 +509,7 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. Anthony Reeves", chapter: "Xi Kappa Lambda", initDate: "Fall 1994", role: "Financial Secretary", email: "reeves@zetakappalambda.org", phone: "(713) 555-0403", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Damon T. Ellsworth", chapter: "Beta Tau Lambda", initDate: "Fall 1999", role: "Chapter President", email: "ellsworth@piiotalambda.org", phone: "(832) 555-0503", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.24 \u2265 2.50" }, signatures: { pass: false, value: "Signature verification pending on outstanding documents" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "3.24 \u2265 2.50" }, signatures: { pass: false, value: "Signature verification pending on outstanding documents" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow({ membershipFees: { done: false, value: "Balance: $95.00" }, ddApproval: { done: false }, hqApproval: { done: false }, medicalReceived: { done: false }, transcriptReceived: { done: false }, pretest: { done: true, value: "100%" } }),
     docs: baseDocs("collegiate", {
       nda: { present: false, valid: false, note: "NDA not received", file: null },
@@ -468,7 +530,7 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. Malcolm Prescott", chapter: "Eta Gamma", initDate: "Spring 2018", role: "Chapter Advisor", email: "prescott@etagamma.org", phone: "(713) 555-0404", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Vernon Ashe", chapter: "Delta Theta", initDate: "Fall 2019", role: "Chapter Advisor", email: "ashe@zetagamma.org", phone: "(832) 555-0504", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "2.87 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "2.87 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow(),
     lastActivity: "2026-07-29"
   }),
@@ -485,7 +547,7 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. Dr. Nathaniel Boone", chapter: "Delta Sigma Lambda", initDate: "Spring 1985", role: "Life Member", email: "boone@deltasigmalambda.org", phone: "(713) 555-0405", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Reginald Hollis", chapter: "Xi Kappa Lambda", initDate: "Fall 2001", role: "Dean of Members", email: "hollis@zetakappalambda.org", phone: "(832) 555-0505", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.45 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: false, value: "Medical form dated 2025-11-04 (>6mo old)" } },
+    checks: { gpaMin: { pass: true, value: "3.45 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: false, value: "Medical form dated 2025-11-04 (>6mo old)" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow({ membershipFees: { done: false, value: "Balance: $95.00" }, ddApproval: { done: false }, hqApproval: { done: false }, medicalReceived: { done: false }, transcriptReceived: { done: false }, pretest: { done: true, value: "100%" } }),
     docs: baseDocs("collegiate", {
       medical: { present: true, valid: false, note: "Dated 2025-11-04 \u2014 exceeds 6-month window", file: null },
@@ -506,7 +568,7 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. Marcus D. Alston", chapter: "Alpha Eta Lambda", initDate: "Spring 1998", role: "Chapter President", email: "alston@alphaetalambda.org", phone: "(713) 555-0406", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Dr. Terrence Baldwin", chapter: "Gamma Eta Lambda", initDate: "Fall 1989", role: "Past Chapter President", email: "baldwin@iotazetalambda.org", phone: "(832) 555-0506", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.72 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "3.72 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow(),
     lastActivity: "2026-07-27"
   }),
@@ -523,7 +585,7 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. Christopher Freeman", chapter: "Delta Sigma Lambda", initDate: "Spring 1995", role: "District DoM", email: "freeman@deltasigmalambda.org", phone: "(713) 555-0407", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Solomon Whitaker", chapter: "Pi Theta Lambda", initDate: "Fall 1992", role: "Historian", email: "whitaker@kappadeltalambda.org", phone: "(832) 555-0507", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: false, value: "2.41 < 2.50 minimum" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: false, value: "2.41 < 2.50 minimum" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow({ membershipFees: { done: false, value: "Balance: $95.00" }, ddApproval: { done: false }, hqApproval: { done: false }, medicalReceived: { done: false }, transcriptReceived: { done: false }, pretest: { done: true, value: "100%" } }),
     docs: baseDocs("collegiate", {
       nda: { present: true, valid: false, note: "Missing initials on p.2", file: null },
@@ -545,7 +607,7 @@ var SEED_CANDIDATES = [
     chapterType: "alumni",
     sponsor: { name: "Bro. Christopher Freeman", chapter: "Delta Sigma Lambda", initDate: "Spring 1995", role: "District DoM", email: "freeman@deltasigmalambda.org", phone: "(713) 555-0412", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Marcus D. Alston", chapter: "Alpha Eta Lambda", initDate: "Spring 1998", role: "Chapter President", email: "alston@alphaetalambda.org", phone: "(832) 555-0512", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.55 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "3.55 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow(),
     lastActivity: "2026-07-28"
   }),
@@ -562,7 +624,7 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. James O. Randolph", chapter: "Alpha Sigma Lambda", initDate: "Spring 2005", role: "Treasurer", email: "randolph@sigmalambda.org", phone: "(713) 555-0408", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Dr. Kwame Osei", chapter: "Alpha Eta Lambda", initDate: "Spring 1988", role: "Past District Director", email: "osei@alphaetalambda.org", phone: "(832) 555-0508", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.12 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "3.12 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow(),
     lastActivity: "2026-07-30"
   }),
@@ -579,7 +641,7 @@ var SEED_CANDIDATES = [
     chapterType: "alumni",
     sponsor: { name: "Bro. Reginald Hollis", chapter: "Xi Kappa Lambda", initDate: "Fall 2001", role: "Dean of Members", email: "hollis@zetakappalambda.org", phone: "(713) 555-0413", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. James O. Randolph", chapter: "Alpha Sigma Lambda", initDate: "Spring 2005", role: "Treasurer", email: "randolph@sigmalambda.org", phone: "(832) 555-0513", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.83 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "3.83 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow(),
     lastActivity: "2026-07-26"
   }),
@@ -596,7 +658,7 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. Anthony Reeves", chapter: "Xi Kappa Lambda", initDate: "Fall 1994", role: "Financial Secretary", email: "reeves@zetakappalambda.org", phone: "(713) 555-0409", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Damon T. Ellsworth", chapter: "Beta Tau Lambda", initDate: "Fall 1999", role: "Chapter President", email: "ellsworth@piiotalambda.org", phone: "(832) 555-0509", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.28 \u2265 2.50" }, signatures: { pass: null, value: "Awaiting review" }, dates: { pass: null, value: "Awaiting review" } },
+    checks: { gpaMin: { pass: true, value: "3.28 \u2265 2.50" }, signatures: { pass: null, value: "Awaiting review" }, dates: { pass: null, value: "Awaiting review" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow({ backgroundCheck: { done: false, value: "Pending" }, membershipFees: { done: false, value: "Balance: $185.00" }, ddApproval: { done: false }, hqApproval: { done: false }, medicalReceived: { done: false }, transcriptReceived: { done: false }, pretest: { done: true, value: "100%" } }),
     lastActivity: "2026-07-24",
     reviewer: "\u2014"
@@ -614,7 +676,7 @@ var SEED_CANDIDATES = [
     chapterType: "alumni",
     sponsor: { name: "Bro. Dr. Terrence Baldwin", chapter: "Gamma Eta Lambda", initDate: "Fall 1989", role: "Past Chapter President", email: "baldwin@iotazetalambda.org", phone: "(713) 555-0414", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Damon T. Ellsworth", chapter: "Beta Tau Lambda", initDate: "Fall 1999", role: "Chapter President", email: "ellsworth@piiotalambda.org", phone: "(832) 555-0514", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.61 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "3.61 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow(),
     lastActivity: "2026-07-28"
   }),
@@ -631,7 +693,7 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. Malcolm Prescott", chapter: "Eta Gamma", initDate: "Spring 2018", role: "Chapter Advisor", email: "prescott@etagamma.org", phone: "(713) 555-0410", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Vernon Ashe", chapter: "Delta Theta", initDate: "Fall 2019", role: "Chapter Advisor", email: "ashe@zetagamma.org", phone: "(832) 555-0510", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.94 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "3.94 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow({ membershipFees: { done: false, value: "Balance: $95.00" }, ddApproval: { done: false }, hqApproval: { done: false }, medicalReceived: { done: false }, transcriptReceived: { done: false }, pretest: { done: true, value: "100%" } }),
     docs: baseDocs("collegiate", {
       nda: { present: false, valid: false, note: "NDA pending", file: null },
@@ -653,7 +715,7 @@ var SEED_CANDIDATES = [
     chapterType: "alumni",
     sponsor: { name: "Bro. Solomon Whitaker", chapter: "Pi Theta Lambda", initDate: "Fall 1992", role: "Historian", email: "whitaker@kappadeltalambda.org", phone: "(713) 555-0415", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Vernon Ashe", chapter: "Delta Theta", initDate: "Fall 2019", role: "Chapter Advisor", email: "ashe@zetagamma.org", phone: "(832) 555-0515", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.05 \u2265 2.50" }, signatures: { pass: null, value: "Awaiting review" }, dates: { pass: null, value: "Awaiting review" } },
+    checks: { gpaMin: { pass: true, value: "3.05 \u2265 2.50" }, signatures: { pass: null, value: "Awaiting review" }, dates: { pass: null, value: "Awaiting review" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow({ backgroundCheck: { done: false, value: "Pending" }, membershipFees: { done: false, value: "Balance: $185.00" }, ddApproval: { done: false }, hqApproval: { done: false }, medicalReceived: { done: false }, transcriptReceived: { done: false }, pretest: { done: true, value: "100%" } }),
     lastActivity: "2026-07-25",
     reviewer: "\u2014"
@@ -671,7 +733,7 @@ var SEED_CANDIDATES = [
     chapterType: "collegiate",
     sponsor: { name: "Bro. Dr. Nathaniel Boone", chapter: "Delta Sigma Lambda", initDate: "Spring 1985", role: "Life Member", email: "boone@deltasigmalambda.org", phone: "(713) 555-0411", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
     recommender: { name: "Bro. Reginald Hollis", chapter: "Xi Kappa Lambda", initDate: "Fall 2001", role: "Dean of Members", email: "hollis@zetakappalambda.org", phone: "(832) 555-0511", relationship: "Recommender \xB7 Regional Brother", letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)", letter: genericLetter("recommender") },
-    checks: { gpaMin: { pass: true, value: "3.37 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" } },
+    checks: { gpaMin: { pass: true, value: "3.37 \u2265 2.50" }, signatures: { pass: true, value: "All required signatures present" }, dates: { pass: true, value: "All dates within window" }, sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
     workflow: fullWorkflow(),
     lastActivity: "2026-07-30"
   })
@@ -785,7 +847,15 @@ function rowToCandidate(row) {
     submitted: row.submitted,
     lastActivity: row.last_activity,
     isNew: !!row.is_new,
-    docs: withCompleteDocs(data.docs)
+    docs: withCompleteDocs(data.docs),
+    // Recomputed on every read rather than trusted from storage -- the
+    // sponsor/recommender letters can change independently of when this
+    // check was last saved (e.g. a letter gets extracted from a later
+    // application upload), so a stored value would go stale.
+    checks: {
+      ...data.checks,
+      sponsorRecommender: computeSponsorRecommenderCheck(data.sponsor ?? null, data.recommender ?? null)
+    }
   };
 }
 var SORT_MAP = {
@@ -968,6 +1038,26 @@ function makeCandidate(input) {
     voterReceived: { done: false },
     transcriptReceived: { done: false }
   };
+  const sponsor = input.sponsorName ? {
+    name: input.sponsorName.startsWith("Bro.") ? input.sponsorName : `Bro. ${input.sponsorName}`,
+    chapter: "Pending confirmation",
+    role: "Chapter Brother",
+    email: "",
+    phone: "",
+    relationship: "Sponsor \xB7 Chapter Brother",
+    letterLocation: "Application PDF \xB7 Section: Sponsor (pending upload)",
+    letter: ""
+  } : null;
+  const recommender = input.recommenderName ? {
+    name: input.recommenderName.startsWith("Bro.") ? input.recommenderName : `Bro. ${input.recommenderName}`,
+    chapter: "Pending confirmation",
+    role: "Chapter Brother",
+    email: "",
+    phone: "",
+    relationship: "Recommender \xB7 Chapter Brother",
+    letterLocation: "Application PDF \xB7 Section: Recommender (pending upload)",
+    letter: ""
+  } : null;
   return {
     id: String(input.id),
     fullId,
@@ -991,30 +1081,13 @@ function makeCandidate(input) {
     chapterKey: input.chapterKey,
     chapterType: chapter?.type || "alumni",
     workflow,
-    sponsor: input.sponsorName ? {
-      name: input.sponsorName.startsWith("Bro.") ? input.sponsorName : `Bro. ${input.sponsorName}`,
-      chapter: "Pending confirmation",
-      role: "Chapter Brother",
-      email: "",
-      phone: "",
-      relationship: "Sponsor \xB7 Chapter Brother",
-      letterLocation: "Application PDF \xB7 Section: Sponsor (pending upload)",
-      letter: ""
-    } : null,
-    recommender: input.recommenderName ? {
-      name: input.recommenderName.startsWith("Bro.") ? input.recommenderName : `Bro. ${input.recommenderName}`,
-      chapter: "Pending confirmation",
-      role: "Chapter Brother",
-      email: "",
-      phone: "",
-      relationship: "Recommender \xB7 Chapter Brother",
-      letterLocation: "Application PDF \xB7 Section: Recommender (pending upload)",
-      letter: ""
-    } : null,
+    sponsor,
+    recommender,
     checks: {
-      gpaMin: { pass: gpa >= 2.5, value: gpa >= 2.5 ? `${gpa.toFixed(2)} \u2265 2.50` : `${gpa.toFixed(2)} < 2.50 minimum` },
+      gpaMin: { pass: gpa > 2.5, value: gpa > 2.5 ? `${gpa.toFixed(2)} > 2.50` : `${gpa.toFixed(2)} does not exceed the 2.50 minimum` },
       signatures: { pass: null, value: "Awaiting document upload" },
-      dates: { pass: null, value: "Awaiting document upload" }
+      dates: { pass: null, value: "Awaiting document upload" },
+      sponsorRecommender: computeSponsorRecommenderCheck(sponsor, recommender)
     },
     docs: emptyDocs,
     reviewer: "\u2014",
@@ -1505,6 +1578,12 @@ async function redactSensitiveInfo(pdfBytes) {
 
 // src/index.tsx
 var app = new Hono().basePath("/api");
+var NEEDS_VERIFICATION_NOTES = {
+  transcript: "Needs officer verification: must include a signature or the school seal.",
+  enrollmentLetter: "Needs officer verification: must be signed by the Office of the Registrar.",
+  medical: "Needs officer verification: must be signed by both the candidate and the physician.",
+  nda: "Needs officer verification: must be signed by the candidate, and by a parent/guardian if the candidate is under 18."
+};
 app.use("*", cors());
 function secretOf() {
   return process.env.SESSION_SECRET || "dev-secret-tcac-intake-do-not-use-in-real-prod";
@@ -1860,10 +1939,12 @@ app.post("/candidates/:id/docs/:docKey", async (c) => {
   const key = `candidates/${id}/${docKey}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9_.-]/g, "_")}`;
   await putFile(key, bytes, contentType);
   const wasReplaced = !!candidate.docs[docKey]?.file;
+  const uploadNote = wasReplaced ? `Replaced \xB7 ${file.name} \xB7 ${(file.size / 1024).toFixed(0)} KB` : `Uploaded ${file.name} \xB7 ${(file.size / 1024).toFixed(0)} KB`;
+  const needsVerification = NEEDS_VERIFICATION_NOTES[docKey];
   const doc = {
     present: true,
-    valid: true,
-    note: wasReplaced ? `Replaced \xB7 ${file.name} \xB7 ${(file.size / 1024).toFixed(0)} KB` : `Uploaded ${file.name} \xB7 ${(file.size / 1024).toFixed(0)} KB`,
+    valid: !needsVerification,
+    note: needsVerification || uploadNote,
     file: `/api/files/${key}`,
     uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
@@ -1897,6 +1978,11 @@ app.post("/candidates/:id/docs/:docKey", async (c) => {
       } else if (docKey === "essay") {
         const essayText = await extractPdfText(new Uint8Array(originalBytes));
         if (essayText.trim()) updated = await updateCandidateFields(id, { essayText }) || updated;
+        const words = countWords(essayText);
+        const meetsMin = !!essayText.trim() && words >= MIN_ESSAY_WORDS;
+        const essayNote = essayText.trim() ? meetsMin ? `${words} words` : `Essay is ${words} words \u2014 below the ${MIN_ESSAY_WORDS}-word minimum` : "Could not read the essay text automatically \u2014 please confirm it meets the 300-word minimum manually";
+        const essayDoc = updated?.docs.essay || current.docs.essay;
+        updated = await updateCandidateDoc(id, docKey, { ...essayDoc, valid: meetsMin, note: essayNote }) || updated;
       }
     } catch (err) {
       console.error("Letter/essay/fees extraction failed", err);

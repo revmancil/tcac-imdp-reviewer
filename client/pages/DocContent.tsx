@@ -110,7 +110,7 @@ export function DocContent({ docKey, candidate, chapter }: { docKey: string; can
           </table>
           <div className="transcript-gpa">
             <div><span>Term GPA:</span> <b>{(candidate.gpa + 0.04).toFixed(2)}</b></div>
-            <div><span>Cumulative GPA:</span> <b className={candidate.gpa < 2.5 ? 'gpa-flag' : ''}>{candidate.gpa.toFixed(2)}</b></div>
+            <div><span>Cumulative GPA:</span> <b className={candidate.gpa <= 2.5 ? 'gpa-flag' : ''}>{candidate.gpa.toFixed(2)}</b></div>
             <div><span>Credits Earned:</span> <b>84</b></div>
           </div>
           <div className="paper-attest small">This transcript is official when it bears the raised seal of the Registrar and is transmitted directly from the institution.</div>

@@ -98,6 +98,16 @@ export interface CheckItemState {
   value: string;
 }
 
+// A three-way version of CheckItemState for checks where "received but
+// wrong" (warn, yellow) needs to read differently from "not received at all
+// / fails outright" (flag, red) -- CheckItemState's boolean pass can't tell
+// those apart.
+export type CheckState = 'ok' | 'warn' | 'flag' | 'pending';
+export interface TriCheckState {
+  state: CheckState;
+  value: string;
+}
+
 export interface Candidate {
   id: string;
   fullId: string;
@@ -127,6 +137,7 @@ export interface Candidate {
     gpaMin: CheckItemState;
     signatures: CheckItemState;
     dates: CheckItemState;
+    sponsorRecommender: TriCheckState;
   };
   docs: Record<string, DocState>;
   reviewer: string;

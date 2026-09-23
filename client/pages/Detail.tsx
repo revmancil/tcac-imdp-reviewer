@@ -171,6 +171,7 @@ export default function Detail() {
           <CheckItem label="GPA Minimum (2.50)" pass={candidate.checks.gpaMin.pass} value={candidate.checks.gpaMin.value} />
           <CheckItem label="Required Signatures" pass={candidate.checks.signatures.pass} value={candidate.checks.signatures.value} />
           <CheckItem label="Date Validity" pass={candidate.checks.dates.pass} value={candidate.checks.dates.value} />
+          <CheckItem label="Sponsor & Recommender" state={candidate.checks.sponsorRecommender.state} value={candidate.checks.sponsorRecommender.value} />
         </div>
       </div>
 
@@ -265,14 +266,14 @@ export default function Detail() {
   )
 }
 
-function CheckItem({ label, pass, value }: { label: string; pass: boolean | null; value: string }) {
-  const state = pass === null ? 'pending' : pass ? 'ok' : 'flag'
+function CheckItem({ label, pass, state: stateProp, value }: { label: string; pass?: boolean | null; state?: 'ok' | 'warn' | 'flag' | 'pending'; value: string }) {
+  const state = stateProp ?? (pass === null || pass === undefined ? 'pending' : pass ? 'ok' : 'flag')
   return (
     <div className={`check-item check-item-${state}`}>
       <div className="check-item-top">
         <span className="check-item-icon">
           {state === 'ok' && <Icon name="check" size={13} />}
-          {state === 'flag' && <Icon name="warn" size={13} />}
+          {(state === 'flag' || state === 'warn') && <Icon name="warn" size={13} />}
           {state === 'pending' && <Icon name="clock" size={13} />}
         </span>
         <span className="check-item-label">{label}</span>
