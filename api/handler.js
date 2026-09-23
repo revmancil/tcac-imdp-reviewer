@@ -1023,21 +1023,6 @@ function makeCandidate(input) {
   requiredDocsFor(chapter.type).forEach((d) => {
     emptyDocs[d.key] = { present: false, valid: false, note: "Not yet received", file: null };
   });
-  const workflow = {
-    pretest: { done: false },
-    appSubmitted: { done: true },
-    backgroundCheck: { done: false, value: "Pending" },
-    membershipFees: { done: false, value: "Balance pending" },
-    ddApproval: { done: false },
-    hqApproval: { done: false },
-    sponsorAssigned: { done: !!input.sponsorName, value: input.sponsorName || void 0 },
-    recommenderAssigned: { done: !!input.recommenderName, value: input.recommenderName || void 0 },
-    essayReceived: { done: false },
-    resumeReceived: { done: false },
-    medicalReceived: { done: false },
-    voterReceived: { done: false },
-    transcriptReceived: { done: false }
-  };
   const sponsor = input.sponsorName ? {
     name: input.sponsorName.startsWith("Bro.") ? input.sponsorName : `Bro. ${input.sponsorName}`,
     chapter: "Pending confirmation",
@@ -1058,6 +1043,28 @@ function makeCandidate(input) {
     letterLocation: "Application PDF \xB7 Section: Recommender (pending upload)",
     letter: ""
   } : null;
+  const workflow = {
+    pretest: { done: false },
+    // Only flips true once the Application PDF is actually uploaded (see
+    // WORKFLOW_STEP_FOR_DOC in src/index.tsx) -- a bare candidate record
+    // (CSV import, manual add) hasn't submitted anything yet.
+    appSubmitted: { done: false },
+    backgroundCheck: { done: false, value: "Pending" },
+    membershipFees: { done: false, value: "Balance pending" },
+    ddApproval: { done: false },
+    hqApproval: { done: false },
+    // Having a name on file isn't the same as having received the actual
+    // letter -- this only flips true once a letter is extracted from an
+    // uploaded application (see the docKey === 'application' branch in
+    // src/index.tsx). A name-only assignment shows as pending, not done.
+    sponsorAssigned: { done: false, value: sponsor ? `${sponsor.name} \xB7 awaiting letter` : void 0 },
+    recommenderAssigned: { done: false, value: recommender ? `${recommender.name} \xB7 awaiting letter` : void 0 },
+    essayReceived: { done: false },
+    resumeReceived: { done: false },
+    medicalReceived: { done: false },
+    voterReceived: { done: false },
+    transcriptReceived: { done: false }
+  };
   return {
     id: String(input.id),
     fullId,
