@@ -62,23 +62,20 @@ CREATE INDEX IF NOT EXISTS idx_officer_credentials_email ON officer_credentials(
 `;
 
 let schemaReady = false;
-let seedChecked = false;
 
 export async function ensureReady() {
   if (!schemaReady) {
     await sql.unsafe(SCHEMA_SQL);
     schemaReady = true;
   }
-  if (!seedChecked) {
-    seedChecked = true;
-    const rows = await sql<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM candidates`;
-    if (!rows[0] || rows[0].n === 0) {
-      await seedDatabase();
-    }
-  }
 }
 
-async function seedDatabase() {
+// Not called automatically -- ensureReady() used to auto-run this whenever
+// the candidates table was empty, which fought against ever deleting
+// candidates for real (the demo roster would silently come back on the next
+// cold start). Kept here for spinning up a fresh demo/staging database on
+// purpose; call it explicitly (e.g. a one-off script) when that's wanted.
+export async function seedDatabase() {
   await sql.begin((tx) => Promise.all(SEED_CANDIDATES.map((c) => upsertCandidateRow(c, tx))));
 }
 

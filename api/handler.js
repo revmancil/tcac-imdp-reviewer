@@ -785,22 +785,11 @@ CREATE TABLE IF NOT EXISTS officer_credentials (
 CREATE INDEX IF NOT EXISTS idx_officer_credentials_email ON officer_credentials(email);
 `;
 var schemaReady = false;
-var seedChecked = false;
 async function ensureReady() {
   if (!schemaReady) {
     await sql.unsafe(SCHEMA_SQL);
     schemaReady = true;
   }
-  if (!seedChecked) {
-    seedChecked = true;
-    const rows = await sql`SELECT COUNT(*)::int AS n FROM candidates`;
-    if (!rows[0] || rows[0].n === 0) {
-      await seedDatabase();
-    }
-  }
-}
-async function seedDatabase() {
-  await sql.begin((tx) => Promise.all(SEED_CANDIDATES.map((c) => upsertCandidateRow(c, tx))));
 }
 async function upsertCandidateRow(c, db = sql) {
   const rest = { ...c };
