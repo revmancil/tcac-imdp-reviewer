@@ -204,6 +204,7 @@ export default function Detail() {
                     {doc?.note && <div className="checkrow-note">{doc.note}</div>}
                     {!doc?.note && doc?.present && doc.valid && <div className="checkrow-note">{d.pages} pg · Validated{doc.file ? ' · PDF attached' : ''}</div>}
                     {!doc?.note && !doc?.present && <div className="checkrow-note">Not received</div>}
+                    {d.key === 'essay' && <EssayChecklistWordCount candidate={candidate} />}
                   </div>
                 </div>
               )
@@ -414,8 +415,26 @@ function UploadDropzone({
   )
 }
 
+// null = no text available yet to count (real essay file uploaded, but not
+// through the OCR-extracting upload path yet).
+function essayWordSource(candidate: Candidate): string | null {
+  return candidate.essayText ?? (candidate.docs.essay?.file ? null : mockEssayParagraphs(candidate).join(' '))
+}
+
+function EssayChecklistWordCount({ candidate }: { candidate: Candidate }) {
+  const source = essayWordSource(candidate)
+  if (source === null) return null
+  const words = countWords(source)
+  const meetsMin = words >= MIN_ESSAY_WORDS
+  return (
+    <div className={`checkrow-note ${meetsMin ? 'wordcount-ok' : 'wordcount-warn'}`}>
+      {words} words {meetsMin ? `· meets ${MIN_ESSAY_WORDS}-word minimum` : `· below ${MIN_ESSAY_WORDS}-word minimum`}
+    </div>
+  )
+}
+
 function EssayWordCount({ candidate }: { candidate: Candidate }) {
-  const source = candidate.essayText ?? (candidate.docs.essay?.file ? null : mockEssayParagraphs(candidate).join(' '))
+  const source = essayWordSource(candidate)
   if (source === null) {
     return <div className="doc-flag-annot doc-flag-inline"><Icon name="clock" size={14} /><span>Word count pending — re-upload the essay to compute it</span></div>
   }
