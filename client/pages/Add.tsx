@@ -87,8 +87,17 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
   const [parsedFrom, setParsedFrom] = useState<{ fileName: string; file: File; headshotDataUrl: string | null } | null>(null)
+  // Candidate ID is the record's primary key, and OCR can misread a single
+  // digit in it without the result looking obviously wrong (unlike a garbled
+  // name or address) -- so an auto-filled ID gets a standing warning until
+  // the officer actually edits the field, rather than blending in with every
+  // other pre-filled field under the general "review before submitting" note.
+  const [idNeedsVerification, setIdNeedsVerification] = useState(false)
 
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [k]: e.target.value }))
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (k === 'id') setIdNeedsVerification(false)
+    setForm((f) => ({ ...f, [k]: e.target.value }))
+  }
   const setVal = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   const handleParseUpload = async (file: File | null | undefined) => {
@@ -99,6 +108,7 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
       const { fields, headshotDataUrl } = await api.parseApplication(file)
       setForm((f) => ({ ...f, ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v)) }))
       setParsedFrom({ fileName: file.name, file, headshotDataUrl })
+      setIdNeedsVerification(!!fields.id)
     } catch (err: any) {
       setParseError(err.message || 'Could not read that PDF.')
     } finally {
@@ -156,7 +166,13 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
           The record is now in the roster with status <b>Received</b>. Documents will need to be uploaded — the sponsor and recommender will be notified once contact info is confirmed.
         </div>
         <div className="add-success-actions">
-          <button className="btn-secondary" onClick={() => { setConfirmedNew(null); setForm((f) => ({ ...f, id: '', firstName: '', middleName: '', lastName: '', email: '', phone: '', address: '', dob: '', school: '', major: '', minor: '', gpa: '', gradDate: '', sponsorName: '', recommenderName: '' })) }}>
+          <button className="btn-secondary" onClick={() => {
+            setConfirmedNew(null)
+            setForm((f) => ({ ...f, id: '', firstName: '', middleName: '', lastName: '', email: '', phone: '', address: '', dob: '', school: '', major: '', minor: '', gpa: '', gradDate: '', sponsorName: '', recommenderName: '' }))
+            setParsedFrom(null)
+            setParseError(null)
+            setIdNeedsVerification(false)
+          }}>
             + Add another
           </button>
           <button className="btn-primary" onClick={() => onCandidateAdded(confirmedNew.id)}>Open Candidate Record <Icon name="chevron-right" size={12} /></button>
@@ -183,6 +199,9 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
         <div className="add-form-grid">
           <FormField label="Candidate ID" required error={errors.id} span={1}>
             <input className="add-input" value={form.id} onChange={set('id')} placeholder="e.g. 2897060" />
+            {idNeedsVerification && (
+              <div className="ff-warn"><Icon name="warn" size={11} /> Auto-read from the PDF — double-check this number against the source document.</div>
+            )}
           </FormField>
           <FormField label="Term" span={1}>
             <select className="add-select" value={form.term} onChange={set('term')}>

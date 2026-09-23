@@ -18,6 +18,7 @@ import { createWorker } from 'tesseract.js'
 import type { Chapter } from '../../shared/types.js'
 
 export interface ParsedApplicationFields {
+  id?: string
   firstName?: string
   middleName?: string
   lastName?: string
@@ -95,10 +96,11 @@ export function extractHeadshot(pdfBytes: Uint8Array): ExtractedHeadshot | null 
 // we need lives there) and read the text line-by-line.
 // ---------------------------------------------------------------------------
 
-async function renderPageToPNG(doc: mupdf.Document, pageIndex: number): Promise<Uint8Array> {
+async function renderPageToPNG(doc: mupdf.Document, pageIndex: number, gamma?: number): Promise<Uint8Array> {
   const page = doc.loadPage(pageIndex)
   const matrix = mupdf.Matrix.scale(2, 2)
   const pixmap = page.toPixmap(matrix, mupdf.ColorSpace.DeviceRGB, false, true)
+  if (gamma) pixmap.gamma(gamma)
   return pixmap.asPNG()
 }
 
@@ -168,6 +170,12 @@ function parseAddressLines(lines: string[], fields: ParsedApplicationFields) {
 }
 
 function parseHeaderBlock(fullText: string, fields: ParsedApplicationFields, chapters: Record<string, Chapter>) {
+  // The header's meta block has a line like "Candidate 2897040" -- distinct
+  // from checklist lines like "Candidate Resume Uploaded" since those never
+  // have a run of digits right after "Candidate".
+  const idMatch = fullText.match(/\bCandidate\s+(\d{4,})\b/i)
+  if (idMatch) fields.id = idMatch[1]
+
   const bornMatch = fullText.match(/Born in (\d{4})/i)
   if (bornMatch) fields.dob = bornMatch[1]
 
@@ -222,6 +230,20 @@ export async function parseApplicationFields(
       parseAddressLines(lines, fields)
     }
     parseHeaderBlock(combinedText, fields, chapters)
+
+    // The Candidate ID lives in a low-contrast gray metadata line that a
+    // normal OCR pass skips entirely (reads as if it weren't there). A
+    // second, gamma-boosted pass over just the first page recovers it --
+    // deliberately kept separate from the main pass above, since the same
+    // boost that reveals this text also introduces enough noise elsewhere
+    // to corrupt several other fields that already read cleanly without it.
+    if (!fields.id) {
+      const boostedPng = await renderPageToPNG(doc, 0, 2.5)
+      const boostedLines = await ocrLines(worker, boostedPng)
+      const idMatch = boostedLines.join('\n').match(/\bCandidate\s+(\d{4,})\b/i)
+      if (idMatch) fields.id = idMatch[1]
+    }
+
     return fields
   } finally {
     await worker.terminate()

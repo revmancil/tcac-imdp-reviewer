@@ -1193,10 +1193,11 @@ function extractHeadshot(pdfBytes) {
   }
   return null;
 }
-async function renderPageToPNG(doc, pageIndex) {
+async function renderPageToPNG(doc, pageIndex, gamma) {
   const page = doc.loadPage(pageIndex);
   const matrix = mupdf.Matrix.scale(2, 2);
   const pixmap = page.toPixmap(matrix, mupdf.ColorSpace.DeviceRGB, false, true);
+  if (gamma) pixmap.gamma(gamma);
   return pixmap.asPNG();
 }
 async function ocrLines(worker, png) {
@@ -1247,6 +1248,8 @@ function parseAddressLines(lines, fields) {
   }
 }
 function parseHeaderBlock(fullText, fields, chapters) {
+  const idMatch = fullText.match(/\bCandidate\s+(\d{4,})\b/i);
+  if (idMatch) fields.id = idMatch[1];
   const bornMatch = fullText.match(/Born in (\d{4})/i);
   if (bornMatch) fields.dob = bornMatch[1];
   const sponsorMatch = fullText.match(/Sponsor:\s*([^\n]+)/i);
@@ -1285,6 +1288,12 @@ async function parseApplicationFields(pdfBytes, chapters) {
       parseAddressLines(lines, fields);
     }
     parseHeaderBlock(combinedText, fields, chapters);
+    if (!fields.id) {
+      const boostedPng = await renderPageToPNG(doc, 0, 2.5);
+      const boostedLines = await ocrLines(worker, boostedPng);
+      const idMatch = boostedLines.join("\n").match(/\bCandidate\s+(\d{4,})\b/i);
+      if (idMatch) fields.id = idMatch[1];
+    }
     return fields;
   } finally {
     await worker.terminate();

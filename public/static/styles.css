@@ -3348,6 +3348,16 @@ input, select, textarea { font-family: inherit; }
   font-weight: 600;
   font-family: 'Inter', sans-serif;
 }
+.ff-warn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--warn);
+  margin-top: 4px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+}
 
 .add-input, .add-select {
   width: 100%;
