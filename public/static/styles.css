@@ -392,7 +392,7 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .filter-select { border-radius: 8px; border-color: #E4DFCF; }
 
-.btn-primary, .btn-secondary {
+.btn-primary, .btn-secondary, .btn-danger {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -404,7 +404,7 @@ input, select, textarea { font-family: inherit; }
   transition: all 0.15s;
   white-space: nowrap;
 }
-.v-modern .btn-primary, .v-modern .btn-secondary { border-radius: 8px; }
+.v-modern .btn-primary, .v-modern .btn-secondary, .v-modern .btn-danger { border-radius: 8px; }
 .btn-primary {
   background: var(--ink);
   color: var(--gold-light);
@@ -417,7 +417,14 @@ input, select, textarea { font-family: inherit; }
   border-color: var(--line);
 }
 .btn-secondary:hover { background: var(--paper); }
-.btn-primary.sm, .btn-secondary.sm { padding: 6px 10px; font-size: 17px; }
+.btn-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.btn-danger:hover { background: var(--danger); color: #FFF; }
+.btn-danger:disabled { opacity: 0.45; cursor: not-allowed; background: var(--danger-bg); color: var(--danger); }
+.btn-primary.sm, .btn-secondary.sm, .btn-danger.sm { padding: 6px 10px; font-size: 17px; }
 .btn-primary.full { width: 100%; justify-content: center; margin-top: 8px; }
 
 .badge-count {
@@ -561,6 +568,63 @@ input, select, textarea { font-family: inherit; }
   font-style: italic;
   letter-spacing: 0.06em;
 }
+
+/* ==========================================================================
+   Danger zone (district-admin destructive actions)
+   ========================================================================== */
+
+.danger-zone {
+  margin-top: 32px;
+  padding: 16px 18px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  border-radius: 2px;
+}
+.v-modern .danger-zone { border-radius: 10px; }
+.danger-zone-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--danger);
+  margin-bottom: 12px;
+  font-family: 'Inter', sans-serif;
+}
+.danger-zone-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.danger-zone-label {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.danger-zone-desc {
+  font-size: 15px;
+  color: var(--text-2);
+  margin-top: 3px;
+  line-height: 1.5;
+  max-width: 640px;
+}
+.danger-zone-desc code {
+  font-family: 'JetBrains Mono', monospace;
+  background: #FFF;
+  padding: 1px 6px;
+  border-radius: 2px;
+  border: 1px solid var(--line);
+}
+.danger-zone-confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.danger-zone-confirm-row .add-input { flex: 1; max-width: 320px; }
 
 /* ==========================================================================
    Detail view

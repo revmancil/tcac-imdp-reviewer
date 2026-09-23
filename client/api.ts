@@ -57,6 +57,7 @@ export const api = {
   missingReport: () => req<{ rows: any[] }>('/api/candidates/missing-report'),
   csvPreview: (csv: string) => req<{ rows: any[]; errors: any[] }>('/api/candidates/csv/preview', { method: 'POST', body: JSON.stringify({ csv }) }),
   csvCommit: (csv: string) => req<{ inserted: number }>('/api/candidates/csv/commit', { method: 'POST', body: JSON.stringify({ csv }) }),
+  clearRoster: (confirm: string) => req<{ cleared: number }>('/api/candidates/clear-roster', { method: 'POST', body: JSON.stringify({ confirm }) }),
   uploadDoc: (candidateId: string, docKey: string, file: File) => {
     const form = new FormData()
     form.append('file', file)

@@ -9,12 +9,19 @@ import type { AdminOfficerRow } from '../../shared/types'
 // There's no email/SSO service wired up, so the admin relays the generated
 // temp password to the officer directly (phone/text/in person); the officer
 // is forced to change it on next sign-in (see ChangePasswordModal).
+const CLEAR_ROSTER_CONFIRM_PHRASE = 'DELETE ALL CANDIDATES'
+
 export default function Admin() {
   const navigate = useNavigate()
   const [rows, setRows] = useState<AdminOfficerRow[] | null>(null)
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
   const [issued, setIssued] = useState<{ officerId: string; email: string; tempPassword: string } | null>(null)
+  const [clearOpen, setClearOpen] = useState(false)
+  const [clearConfirmText, setClearConfirmText] = useState('')
+  const [clearing, setClearing] = useState(false)
+  const [clearError, setClearError] = useState('')
+  const [clearedCount, setClearedCount] = useState<number | null>(null)
 
   const load = () => {
     api.adminListOfficers().then((r) => setRows(r.rows)).catch((e) => setError(e.message))
@@ -32,6 +39,25 @@ export default function Admin() {
       setError(e.message || 'Could not reset password.')
     } finally {
       setBusyId(null)
+    }
+  }
+
+  const clearRoster = async () => {
+    setClearError('')
+    if (clearConfirmText !== CLEAR_ROSTER_CONFIRM_PHRASE) {
+      setClearError(`Type "${CLEAR_ROSTER_CONFIRM_PHRASE}" exactly to confirm.`)
+      return
+    }
+    setClearing(true)
+    try {
+      const res = await api.clearRoster(clearConfirmText)
+      setClearedCount(res.cleared)
+      setClearOpen(false)
+      setClearConfirmText('')
+    } catch (e: any) {
+      setClearError(e.message || 'Could not clear the roster.')
+    } finally {
+      setClearing(false)
     }
   }
 
@@ -127,6 +153,55 @@ export default function Admin() {
 
       <div className="roster-footer">
         {rows.length} officers in the TCAC directory · Only District Director, Chief Dean of Membership Intake, and Chief Administrator can access this screen.
+      </div>
+
+      <div className="danger-zone">
+        <div className="danger-zone-title"><Icon name="warn" size={14} /> Danger Zone</div>
+
+        {clearedCount !== null && (
+          <div className="scope-banner" style={{ alignItems: 'flex-start' }}>
+            <Icon name="check" size={14} />
+            <span>
+              Cleared {clearedCount} candidate{clearedCount === 1 ? '' : 's'} from the roster.
+              <button className="letter-overlay-close" style={{ marginLeft: 12, width: 22, height: 22 }} onClick={() => setClearedCount(null)} aria-label="Dismiss">
+                <Icon name="x" size={12} />
+              </button>
+            </span>
+          </div>
+        )}
+
+        {!clearOpen ? (
+          <div className="danger-zone-row">
+            <div>
+              <div className="danger-zone-label">Clear Roster</div>
+              <div className="danger-zone-desc">Permanently deletes every candidate record and their document/audit history — for starting fresh before a bulk import. This cannot be undone.</div>
+            </div>
+            <button className="btn-danger sm" onClick={() => { setClearOpen(true); setClearError(''); setClearConfirmText('') }}>
+              <Icon name="warn" size={13} /> Clear Roster…
+            </button>
+          </div>
+        ) : (
+          <div className="danger-zone-confirm">
+            <div className="danger-zone-desc">
+              This permanently deletes <b>every candidate</b> and their uploaded-document history. Officer accounts and passwords are not affected. Uploaded files already in storage are not deleted.
+              Type <code>{CLEAR_ROSTER_CONFIRM_PHRASE}</code> to confirm.
+            </div>
+            {clearError && <div className="signin-error">{clearError}</div>}
+            <div className="danger-zone-confirm-row">
+              <input
+                className="add-input"
+                value={clearConfirmText}
+                onChange={(e) => setClearConfirmText(e.target.value)}
+                placeholder={CLEAR_ROSTER_CONFIRM_PHRASE}
+                autoFocus
+              />
+              <button className="btn-secondary sm" disabled={clearing} onClick={() => { setClearOpen(false); setClearError(''); setClearConfirmText('') }}>Cancel</button>
+              <button className="btn-danger sm" disabled={clearing || clearConfirmText !== CLEAR_ROSTER_CONFIRM_PHRASE} onClick={clearRoster}>
+                {clearing ? 'Clearing…' : 'Permanently Clear Roster'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

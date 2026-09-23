@@ -21,6 +21,7 @@ import {
   candidateExists,
   insertCandidate,
   insertCandidates,
+  clearAllCandidates,
   updateCandidateDoc,
   updateCandidateFields,
   logAudit,
@@ -373,6 +374,27 @@ app.post('/candidates/csv/commit', async (c) => {
     await logAudit(cand.id, officer!.id, 'csv_import', `Imported via CSV by ${officer!.name}`)
   }
   return c.json({ inserted: toInsert.length })
+})
+
+const CLEAR_ROSTER_CONFIRM_PHRASE = 'DELETE ALL CANDIDATES'
+
+// District-tier only, irreversible: deletes every candidate record (and
+// their audit history) so the roster can start clean for a fresh import.
+// Requires the officer to submit an exact confirmation phrase -- this is
+// the kind of action a misclick shouldn't be able to trigger.
+app.post('/candidates/clear-roster', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireDistrictTier(c, officer)
+  if (denied) return denied
+
+  const body = await c.req.json<{ confirm?: string }>().catch(() => ({}) as { confirm?: string })
+  if (body.confirm !== CLEAR_ROSTER_CONFIRM_PHRASE) {
+    return c.json({ error: `Type "${CLEAR_ROSTER_CONFIRM_PHRASE}" exactly to confirm.` }, 400)
+  }
+
+  const cleared = await clearAllCandidates()
+  await logAudit('system', officer!.id, 'clear_roster', `${officer!.name} cleared the entire roster (${cleared} candidates removed)`)
+  return c.json({ cleared })
 })
 
 // Best-effort auto-fill: OCRs an uploaded Application PDF and returns parsed

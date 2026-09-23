@@ -916,6 +916,16 @@ async function logAudit(candidateId, officerId, action, detail) {
   await ensureReady();
   await sql`INSERT INTO audit_log (candidate_id, officer_id, action, detail) VALUES (${candidateId}, ${officerId}, ${action}, ${detail || null})`;
 }
+async function clearAllCandidates() {
+  await ensureReady();
+  const ids = (await sql`SELECT id FROM candidates`).map((r) => r.id);
+  if (ids.length === 0) return 0;
+  await sql.begin(async (tx) => {
+    await tx`DELETE FROM audit_log WHERE candidate_id = ANY(${ids})`;
+    await tx`DELETE FROM candidates WHERE id = ANY(${ids})`;
+  });
+  return ids.length;
+}
 async function getCredentialByOfficerId(officerId) {
   await ensureReady();
   const rows = await sql`SELECT * FROM officer_credentials WHERE officer_id = ${officerId}`;
@@ -1826,6 +1836,19 @@ app.post("/candidates/csv/commit", async (c) => {
     await logAudit(cand.id, officer.id, "csv_import", `Imported via CSV by ${officer.name}`);
   }
   return c.json({ inserted: toInsert.length });
+});
+var CLEAR_ROSTER_CONFIRM_PHRASE = "DELETE ALL CANDIDATES";
+app.post("/candidates/clear-roster", async (c) => {
+  const officer = await currentOfficer(c);
+  const denied = requireDistrictTier(c, officer);
+  if (denied) return denied;
+  const body = await c.req.json().catch(() => ({}));
+  if (body.confirm !== CLEAR_ROSTER_CONFIRM_PHRASE) {
+    return c.json({ error: `Type "${CLEAR_ROSTER_CONFIRM_PHRASE}" exactly to confirm.` }, 400);
+  }
+  const cleared = await clearAllCandidates();
+  await logAudit("system", officer.id, "clear_roster", `${officer.name} cleared the entire roster (${cleared} candidates removed)`);
+  return c.json({ cleared });
 });
 app.post("/candidates/parse-application", async (c) => {
   const officer = await currentOfficer(c);

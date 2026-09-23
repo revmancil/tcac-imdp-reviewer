@@ -243,6 +243,21 @@ export async function logAudit(candidateId: string, officerId: string, action: s
   await sql`INSERT INTO audit_log (candidate_id, officer_id, action, detail) VALUES (${candidateId}, ${officerId}, ${action}, ${detail || null})`;
 }
 
+// Deletes every candidate (and only the audit_log rows that belong to a
+// deleted candidate -- 'system'-scoped entries like password resets are
+// left alone). Irreversible; the caller is responsible for authorization
+// and requiring explicit confirmation before calling this.
+export async function clearAllCandidates(): Promise<number> {
+  await ensureReady();
+  const ids = (await sql<{ id: string }[]>`SELECT id FROM candidates`).map((r) => r.id);
+  if (ids.length === 0) return 0;
+  await sql.begin(async (tx) => {
+    await tx`DELETE FROM audit_log WHERE candidate_id = ANY(${ids})`;
+    await tx`DELETE FROM candidates WHERE id = ANY(${ids})`;
+  });
+  return ids.length;
+}
+
 export async function missingReport(allowedChapterKeys: string[] | 'all') {
   return listCandidates({ allowedChapterKeys, sort: 'id' });
 }
