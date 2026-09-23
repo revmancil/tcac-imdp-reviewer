@@ -2921,6 +2921,18 @@ input, select, textarea { font-family: inherit; }
   gap: 12px;
   color: var(--cream);
 }
+.topbar-brand-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.topbar-brand-link:hover { opacity: 0.82; }
+.topbar-brand-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 .topbar-app {
   font-family: 'Playfair Display', serif;
   font-size: 15px;

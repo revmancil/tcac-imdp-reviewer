@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Avatar, Icon, ShieldMark } from '../components/Brand'
 import { api } from '../api'
 import type { AdminOfficerRow } from '../../shared/types'
@@ -9,6 +10,7 @@ import type { AdminOfficerRow } from '../../shared/types'
 // temp password to the officer directly (phone/text/in person); the officer
 // is forced to change it on next sign-in (see ChangePasswordModal).
 export default function Admin() {
+  const navigate = useNavigate()
   const [rows, setRows] = useState<AdminOfficerRow[] | null>(null)
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -37,6 +39,14 @@ export default function Admin() {
 
   return (
     <div className="roster v-classic">
+      <div className="detail-crumb">
+        <button className="link-btn" onClick={() => navigate('/roster')}>
+          <Icon name="chevron-left" size={14} /> Back to Roster
+        </button>
+        <span className="crumb-sep">/</span>
+        <span className="crumb-cur">Officer Access</span>
+      </div>
+
       <header className="banner-classic">
         <div className="banner-inner">
           <div className="banner-left">

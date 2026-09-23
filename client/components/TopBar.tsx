@@ -24,13 +24,13 @@ export function TopBar() {
 
   return (
     <div className="topbar">
-      <div className="topbar-brand">
+      <button className="topbar-brand topbar-brand-link" onClick={() => navigate('/roster')} aria-label="Back to Roster">
         <ShieldMark size={26} />
         <div>
           <div className="topbar-app">TCAC Intake</div>
           <div className="topbar-sub">Cycle 2026 · Southwestern Region</div>
         </div>
-      </div>
+      </button>
       <div className="user-chip-wrap" ref={ref}>
         <button className="user-chip-btn" onClick={() => setOpen((o) => !o)}>
           <Avatar initials={officer.initials} size={30} />
