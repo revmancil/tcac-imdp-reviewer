@@ -2,6 +2,11 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "public",
+  "functions": {
+    "api/handler.js": {
+      "includeFiles": "node_modules/{mupdf,tesseract.js-core}/**"
+    }
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/handler" },
     { "source": "/api", "destination": "/api/handler" },
