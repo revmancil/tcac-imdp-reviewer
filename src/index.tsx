@@ -124,7 +124,13 @@ app.post('/auth/signin', async (c) => {
 
   const ok = await verifyPassword(password, cred.password_hash, cred.password_salt, cred.iterations)
   if (!ok) {
-    await recordFailedLogin(cred.officer_id, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES)
+    // Best-effort bookkeeping -- if the database is temporarily read-only
+    // (e.g. a Supabase incident), a failed login should still report
+    // "incorrect password" rather than a raw 500, even though the
+    // attempt/lockout counter couldn't be persisted this time.
+    await recordFailedLogin(cred.officer_id, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES).catch((err) => {
+      console.error('recordFailedLogin failed (continuing sign-in flow):', err)
+    })
     const remaining = Math.max(0, MAX_LOGIN_ATTEMPTS - (cred.failed_attempts + 1))
     if (remaining <= 0) {
       return c.json({ error: `Too many failed attempts. Account locked for ${LOCKOUT_MINUTES} minutes.` }, 423)
@@ -132,7 +138,12 @@ app.post('/auth/signin', async (c) => {
     return c.json({ error: `${genericError} ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before lockout.` }, 401)
   }
 
-  await resetFailedLogins(cred.officer_id)
+  // Same as above -- a correct password should still sign the officer in
+  // even if clearing their failed-attempt counter can't be written right
+  // now; worst case it just gets cleared on a later successful sign-in.
+  await resetFailedLogins(cred.officer_id).catch((err) => {
+    console.error('resetFailedLogins failed (continuing sign-in flow):', err)
+  })
   await setSession(c, secretOf(), officer.id)
   return c.json({ officer: { ...officer, mustChangePassword: cred.must_change === 1 } })
 })
