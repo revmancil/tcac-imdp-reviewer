@@ -63,11 +63,12 @@ export default function Add() {
   )
 }
 
-function FormField({ label, required, error, span = 2, children }: { label: string; required?: boolean; error?: string; span?: number; children: React.ReactNode }) {
+function FormField({ label, required, error, span = 2, hint, children }: { label: string; required?: boolean; error?: string; span?: number; hint?: string; children: React.ReactNode }) {
   return (
     <div className={`ff ff-span-${span}`}>
       <label className="ff-label">{label}{required && <span className="ff-req">*</span>}</label>
       {children}
+      {hint && !error && <div className="ff-hint">{hint}</div>}
       {error && <div className="ff-error">{error}</div>}
     </div>
   )
@@ -99,6 +100,23 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
     setForm((f) => ({ ...f, [k]: e.target.value }))
   }
   const setVal = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
+
+  // The school is a fixed fact of a collegiate chapter, not something an
+  // officer should be typing independently -- selecting one fills (and
+  // locks) School to match, same as the server does regardless of what's
+  // submitted. Alumni chapters have no fixed school, so that field stays a
+  // normal, editable input for them.
+  const setChapter = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const chapterKey = e.target.value
+    const chapter = reference?.chapters[chapterKey]
+    setForm((f) => ({
+      ...f,
+      chapterKey,
+      school: chapter?.type === 'collegiate' && chapter.school ? chapter.school : f.school,
+    }))
+  }
+  const selectedChapter = form.chapterKey ? reference?.chapters[form.chapterKey] : undefined
+  const schoolLockedByChapter = selectedChapter?.type === 'collegiate' && !!selectedChapter.school
 
   const handleParseUpload = async (file: File | null | undefined) => {
     if (!file) return
@@ -246,7 +264,7 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
         </div>
         <div className="add-form-grid">
           <FormField label="Chapter" required error={errors.chapterKey} span={4}>
-            <select className="add-select" value={form.chapterKey} onChange={set('chapterKey')}>
+            <select className="add-select" value={form.chapterKey} onChange={setChapter}>
               <option value="">— Select a chapter —</option>
               <optgroup label="Collegiate Chapters">
                 {chapterOptions.filter((c) => c.type === 'collegiate').map((c) => (
@@ -282,8 +300,14 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
           <div><div className="add-form-section-title">Academic Standing</div><div className="add-form-section-sub">Confirms the candidate meets the 2.50 GPA minimum</div></div>
         </div>
         <div className="add-form-grid">
-          <FormField label="School / University" required error={errors.school} span={3}>
-            <input className="add-input" value={form.school} onChange={set('school')} placeholder="Prairie View A&M University" />
+          <FormField label="School / University" required error={errors.school} span={3} hint={schoolLockedByChapter ? 'Set by the selected chapter' : undefined}>
+            <input
+              className="add-input"
+              value={form.school}
+              onChange={set('school')}
+              placeholder="Prairie View A&M University"
+              disabled={schoolLockedByChapter}
+            />
           </FormField>
           <FormField label="Cumulative GPA" error={errors.gpa} span={1}>
             <input className="add-input" value={form.gpa} onChange={set('gpa')} placeholder="3.50" />

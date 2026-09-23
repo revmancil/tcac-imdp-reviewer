@@ -103,7 +103,13 @@ export function makeCandidate(input: ManualCandidateInput): Candidate {
     phone: input.phone || '',
     address: input.address || '',
     dob: input.dob || '',
-    school: input.school || 'Not specified',
+    // The school is a fixed fact of a collegiate chapter (Delta Theta is
+    // always Texas Southern University), not independent input -- takes
+    // precedence over whatever was typed/imported so it can't drift out of
+    // sync with the chapter, and fills the gap when it's blank. Alumni
+    // chapters have no fixed school, so alumni candidates keep whatever was
+    // provided.
+    school: chapter?.type === 'collegiate' && chapter.school ? chapter.school : input.school || 'Not specified',
     major: input.major || 'Not specified',
     minor: input.minor || '',
     classification: input.classification || 'Undergraduate',
