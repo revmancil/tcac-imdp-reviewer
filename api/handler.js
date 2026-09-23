@@ -739,6 +739,33 @@ var SEED_CANDIDATES = [
   })
 ];
 
+// src/lib/auth.ts
+var OFFICER_EMAILS = {
+  escalante: "adrianescalante1906@gmail.com",
+  bernard: "Wbernard22@yahoo.com",
+  carroll: "revmancil@hotmail.com",
+  "tanner-4041": "Pharaoh87@tx.rr.com",
+  "carroll-4041": "icecoldrev06@outlook.com",
+  "cathey-4042": "victorcathey3@gmail.com",
+  "corzine-4042": "zine1906@yahoo.com",
+  "norman-4043": "briannorman2@yahoo.com",
+  "wheaton-4044": "james.wheaton@hotmail.com",
+  "dixon-4045": "threeddixon@hot.rr.com",
+  "wooten-4046": "kdw106@sbcglobal.net",
+  "bishop-4047": "president@drl1949.com",
+  "renteria-4047": "arenteria@humana.com",
+  "neal-4048": "fdn1906@att.net",
+  "green-4048": "dgreen_77071@yahoo.com",
+  "carter-4049": "Mradriancarter@gmail.com",
+  "oliver-4050": "wao1906@gmail.com",
+  "bates-4050": "cbates2003@gmail.com",
+  "smith-4051": "ronnies764@gmail.com",
+  "love-4051": "glovehy98@hotmail.com"
+};
+var MAX_LOGIN_ATTEMPTS = 5;
+var LOCKOUT_MINUTES = 15;
+var MIN_PASSWORD_LENGTH = 10;
+
 // src/lib/db.ts
 var sql = postgres(process.env.DATABASE_URL || "", {
   prepare: false,
@@ -783,13 +810,38 @@ CREATE TABLE IF NOT EXISTS officer_credentials (
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_officer_credentials_email ON officer_credentials(email);
+CREATE TABLE IF NOT EXISTS officers (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  title       TEXT NOT NULL,
+  initials    TEXT NOT NULL,
+  area        INTEGER,
+  tier        TEXT NOT NULL,
+  scope       TEXT NOT NULL,
+  email       TEXT NOT NULL,
+  active      INTEGER NOT NULL DEFAULT 1,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_officers_active ON officers(active);
 `;
 var schemaReady = false;
 async function ensureReady() {
   if (!schemaReady) {
     await sql.unsafe(SCHEMA_SQL);
+    await ensureOfficersSeeded();
     schemaReady = true;
   }
+}
+async function ensureOfficersSeeded() {
+  const rows = await sql`SELECT COUNT(*)::int AS n FROM officers`;
+  if (rows[0]?.n) return;
+  const seed = Object.values(OFFICERS).map((o) => ({ ...o, email: OFFICER_EMAILS[o.id] })).filter((o) => !!o.email);
+  if (seed.length === 0) return;
+  await sql.begin((tx) => Promise.all(seed.map((o) => tx`
+    INSERT INTO officers (id, name, title, initials, area, tier, scope, email, active)
+    VALUES (${o.id}, ${o.name}, ${o.title}, ${o.initials}, ${o.area ?? null}, ${o.tier}, ${JSON.stringify(o.scope)}, ${o.email}, 1)
+    ON CONFLICT (id) DO NOTHING
+  `)));
 }
 async function upsertCandidateRow(c, db = sql) {
   const rest = { ...c };
@@ -987,6 +1039,67 @@ async function setPassword(officerId, hash, salt, iterations, mustChange) {
     SET password_hash = ${hash}, password_salt = ${salt}, iterations = ${iterations}, must_change = ${mustChange ? 1 : 0}, failed_attempts = 0, locked_until = NULL, updated_at = now()
     WHERE officer_id = ${officerId}
   `;
+}
+function rowToOfficer(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    title: row.title,
+    initials: row.initials,
+    area: row.area,
+    tier: row.tier,
+    scope: JSON.parse(row.scope),
+    email: row.email,
+    active: !!row.active
+  };
+}
+function officerRowToPublic(o) {
+  return { id: o.id, name: o.name, title: o.title, initials: o.initials, area: o.area ?? void 0, tier: o.tier, scope: o.scope };
+}
+async function listOfficers(includeInactive = false) {
+  await ensureReady();
+  const rows = includeInactive ? await sql`SELECT * FROM officers ORDER BY tier DESC, area NULLS FIRST, name` : await sql`SELECT * FROM officers WHERE active = 1 ORDER BY tier DESC, area NULLS FIRST, name`;
+  return rows.map(rowToOfficer);
+}
+async function getOfficer(id) {
+  await ensureReady();
+  const rows = await sql`SELECT * FROM officers WHERE id = ${id}`;
+  return rows.length ? rowToOfficer(rows[0]) : null;
+}
+async function officerIdExists(id) {
+  await ensureReady();
+  const rows = await sql`SELECT 1 AS x FROM officers WHERE id = ${id}`;
+  return rows.length > 0;
+}
+async function countActiveDistrictOfficers(excludingId) {
+  await ensureReady();
+  const rows = await sql`
+    SELECT COUNT(*)::int AS n FROM officers
+    WHERE active = 1 AND tier = 'district' AND (${excludingId ?? null}::text IS NULL OR id != ${excludingId ?? null})
+  `;
+  return rows[0]?.n || 0;
+}
+async function createOfficer(o) {
+  await ensureReady();
+  await sql`
+    INSERT INTO officers (id, name, title, initials, area, tier, scope, email, active)
+    VALUES (${o.id}, ${o.name}, ${o.title}, ${o.initials}, ${o.area}, ${o.tier}, ${JSON.stringify(o.scope)}, ${o.email.trim()}, 1)
+  `;
+  return { ...o, active: true };
+}
+async function updateOfficer(id, fields) {
+  await ensureReady();
+  const existing = await getOfficer(id);
+  if (!existing) return null;
+  const merged = { ...existing, ...fields };
+  await sql`
+    UPDATE officers SET
+      name = ${merged.name}, title = ${merged.title}, initials = ${merged.initials},
+      area = ${merged.area}, tier = ${merged.tier}, scope = ${JSON.stringify(merged.scope)},
+      email = ${merged.email.trim()}, active = ${merged.active ? 1 : 0}
+    WHERE id = ${id}
+  `;
+  return merged;
 }
 
 // src/lib/storage.ts
@@ -1274,33 +1387,6 @@ async function verifyPassword(password, storedHash, storedSalt, iterations = ITE
   const candidate = await pbkdf2(password, storedSalt, iterations);
   return timingSafeEqual(candidate, storedHash);
 }
-
-// src/lib/auth.ts
-var OFFICER_EMAILS = {
-  escalante: "adrianescalante1906@gmail.com",
-  bernard: "Wbernard22@yahoo.com",
-  carroll: "revmancil@hotmail.com",
-  "tanner-4041": "Pharaoh87@tx.rr.com",
-  "carroll-4041": "icecoldrev06@outlook.com",
-  "cathey-4042": "victorcathey3@gmail.com",
-  "corzine-4042": "zine1906@yahoo.com",
-  "norman-4043": "briannorman2@yahoo.com",
-  "wheaton-4044": "james.wheaton@hotmail.com",
-  "dixon-4045": "threeddixon@hot.rr.com",
-  "wooten-4046": "kdw106@sbcglobal.net",
-  "bishop-4047": "president@drl1949.com",
-  "renteria-4047": "arenteria@humana.com",
-  "neal-4048": "fdn1906@att.net",
-  "green-4048": "dgreen_77071@yahoo.com",
-  "carter-4049": "Mradriancarter@gmail.com",
-  "oliver-4050": "wao1906@gmail.com",
-  "bates-4050": "cbates2003@gmail.com",
-  "smith-4051": "ronnies764@gmail.com",
-  "love-4051": "glovehy98@hotmail.com"
-};
-var MAX_LOGIN_ATTEMPTS = 5;
-var LOCKOUT_MINUTES = 15;
-var MIN_PASSWORD_LENGTH = 10;
 
 // src/lib/pdf-parse.ts
 import * as mupdf from "mupdf";
@@ -1624,10 +1710,10 @@ function secretOf() {
 async function currentOfficer(c) {
   const id = await readSession(c, secretOf());
   if (!id) return null;
-  const officer = OFFICERS[id];
-  if (!officer) return null;
+  const row = await getOfficer(id);
+  if (!row || !row.active) return null;
   const cred = await getCredentialByOfficerId(id);
-  return { ...officer, mustChangePassword: cred ? cred.must_change === 1 : false };
+  return { ...officerRowToPublic(row), mustChangePassword: cred ? cred.must_change === 1 : false };
 }
 function allowedChapterKeysFor(officer) {
   if (!officer || officer.scope === "all") return "all";
@@ -1641,8 +1727,9 @@ app.post("/auth/signin", async (c) => {
   if (!email || !password) return c.json({ error: genericError }, 401);
   const cred = await getCredentialByEmail(email);
   if (!cred) return c.json({ error: genericError }, 401);
-  const officer = OFFICERS[cred.officer_id];
-  if (!officer) return c.json({ error: genericError }, 401);
+  const officerRow = await getOfficer(cred.officer_id);
+  if (!officerRow || !officerRow.active) return c.json({ error: genericError }, 401);
+  const officer = officerRowToPublic(officerRow);
   if (cred.locked_until && new Date(cred.locked_until).getTime() > Date.now()) {
     const minutesLeft = Math.ceil((new Date(cred.locked_until).getTime() - Date.now()) / 6e4);
     return c.json({ error: `Too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.` }, 423);
@@ -1704,13 +1791,14 @@ app.get("/auth/admin/officers", async (c) => {
   const officer = await currentOfficer(c);
   const denied = requireDistrictTier(c, officer);
   if (denied) return denied;
-  const metas = await listCredentialsMeta();
+  const [officerRows, metas] = await Promise.all([listOfficers(true), listCredentialsMeta()]);
   const byId = new Map(metas.map((m) => [m.officer_id, m]));
-  const rows = Object.values(OFFICERS).map((o) => {
+  const rows = officerRows.map((o) => {
     const meta = byId.get(o.id);
     return {
-      officer: o,
-      email: meta?.email || OFFICER_EMAILS[o.id] || null,
+      officer: officerRowToPublic(o),
+      active: o.active,
+      email: meta?.email || o.email || null,
       hasCredential: !!meta,
       mustChangePassword: meta ? meta.must_change === 1 : false,
       lockedUntil: meta?.locked_until || null,
@@ -1719,15 +1807,105 @@ app.get("/auth/admin/officers", async (c) => {
   });
   return c.json({ rows });
 });
+function slugify(s) {
+  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+function deriveOfficerId(name, area) {
+  const parts = name.replace(/^Bro\.\s*/i, "").trim().split(/\s+/);
+  const surname = slugify(parts[parts.length - 1] || "officer") || "officer";
+  return area ? `${surname}-${area}` : surname;
+}
+async function uniqueOfficerId(base) {
+  let candidate = base;
+  let n = 2;
+  while (await officerIdExists(candidate)) {
+    candidate = `${base}-${n}`;
+    n++;
+  }
+  return candidate;
+}
+app.post("/auth/admin/officers", async (c) => {
+  const officer = await currentOfficer(c);
+  const denied = requireDistrictTier(c, officer);
+  if (denied) return denied;
+  const body = await c.req.json().catch(() => ({}));
+  const name = (body.name || "").trim();
+  const title = (body.title || "").trim();
+  const initials = (body.initials || "").trim().toUpperCase();
+  const tier = body.tier === "district" ? "district" : body.tier === "area" ? "area" : null;
+  const area = body.area ? Number(body.area) : null;
+  const email = (body.email || "").trim();
+  if (!name || !title || !initials || !tier || !email) {
+    return c.json({ error: "Name, title, initials, tier, and email are all required." }, 422);
+  }
+  if (tier === "area" && !area) {
+    return c.json({ error: "Area-tier officers need an area." }, 422);
+  }
+  const id = await uniqueOfficerId(deriveOfficerId(name, area));
+  const scope = tier === "district" ? "all" : [area];
+  const created = await createOfficer({ id, name, title, initials, area, tier, scope, email });
+  await logAudit("system", officer.id, "officer_added", `${officer.name} added officer ${created.name} (${created.id})`);
+  return c.json({ officer: officerRowToPublic(created) });
+});
+app.patch("/auth/admin/officers/:id", async (c) => {
+  const officer = await currentOfficer(c);
+  const denied = requireDistrictTier(c, officer);
+  if (denied) return denied;
+  const targetId = c.req.param("id");
+  const existing = await getOfficer(targetId);
+  if (!existing) return c.json({ error: "Unknown officer" }, 404);
+  const body = await c.req.json().catch(() => ({}));
+  const fields = {};
+  if (body.name !== void 0) fields.name = body.name.trim();
+  if (body.title !== void 0) fields.title = body.title.trim();
+  if (body.initials !== void 0) fields.initials = body.initials.trim().toUpperCase();
+  if (body.email !== void 0) fields.email = body.email.trim();
+  const tier = body.tier === "district" ? "district" : body.tier === "area" ? "area" : existing.tier;
+  const area = body.area !== void 0 ? body.area ? Number(body.area) : null : existing.area;
+  if (tier === "area" && !area) return c.json({ error: "Area-tier officers need an area." }, 422);
+  if (body.tier !== void 0 || body.area !== void 0) {
+    fields.tier = tier;
+    fields.area = area;
+    fields.scope = tier === "district" ? "all" : [area];
+  }
+  if (body.active === false && existing.tier === "district") {
+    const remaining = await countActiveDistrictOfficers(existing.id);
+    if (remaining === 0) {
+      return c.json({ error: "Cannot remove the last active district-tier officer." }, 400);
+    }
+  }
+  if (body.active !== void 0) fields.active = body.active;
+  const updated = await updateOfficer(targetId, fields);
+  if (!updated) return c.json({ error: "Unknown officer" }, 404);
+  await logAudit("system", officer.id, "officer_updated", `${officer.name} updated officer ${updated.name} (${updated.id})`);
+  return c.json({ officer: officerRowToPublic(updated) });
+});
+app.delete("/auth/admin/officers/:id", async (c) => {
+  const officer = await currentOfficer(c);
+  const denied = requireDistrictTier(c, officer);
+  if (denied) return denied;
+  const targetId = c.req.param("id");
+  const existing = await getOfficer(targetId);
+  if (!existing) return c.json({ error: "Unknown officer" }, 404);
+  if (existing.tier === "district") {
+    const remaining = await countActiveDistrictOfficers(existing.id);
+    if (remaining === 0) {
+      return c.json({ error: "Cannot remove the last active district-tier officer." }, 400);
+    }
+  }
+  await updateOfficer(targetId, { active: false });
+  await logAudit("system", officer.id, "officer_removed", `${officer.name} removed officer ${existing.name} (${existing.id})`);
+  return c.json({ ok: true });
+});
 app.post("/auth/admin/reset-password", async (c) => {
   const officer = await currentOfficer(c);
   const denied = requireDistrictTier(c, officer);
   if (denied) return denied;
   const body = await c.req.json().catch(() => ({}));
   const targetId = body.officerId || "";
-  const target = OFFICERS[targetId];
-  if (!target) return c.json({ error: "Unknown officer" }, 400);
-  const email = OFFICER_EMAILS[targetId];
+  const target = await getOfficer(targetId);
+  if (!target || !target.active) return c.json({ error: "Unknown officer" }, 400);
+  const email = target.email;
   if (!email) return c.json({ error: "No login email is configured for that officer." }, 400);
   const tempPassword = randomTempPassword();
   const { hash, salt, iterations } = await hashPassword(tempPassword);
@@ -1742,13 +1920,14 @@ app.post("/auth/bootstrap", async (c) => {
   if (body.secret !== configured) return c.json({ error: "Invalid bootstrap secret." }, 403);
   const existing = await listCredentialsMeta();
   const existingIds = new Set(existing.map((m) => m.officer_id));
-  const toSeed = Object.values(OFFICERS).filter((o) => !existingIds.has(o.id));
+  const allOfficers = await listOfficers();
+  const toSeed = allOfficers.filter((o) => !existingIds.has(o.id));
   if (toSeed.length === 0) {
     return c.json({ error: "All officers already have credentials. Use /api/auth/admin/reset-password instead." }, 409);
   }
   const results = [];
   for (const o of toSeed) {
-    const email = OFFICER_EMAILS[o.id];
+    const email = o.email;
     if (!email) continue;
     const tempPassword = randomTempPassword();
     const { hash, salt, iterations } = await hashPassword(tempPassword);
@@ -1757,10 +1936,11 @@ app.post("/auth/bootstrap", async (c) => {
   }
   return c.json({ seeded: results.length, officers: results });
 });
-app.get("/reference", (c) => {
+app.get("/reference", async (c) => {
+  const officers = await listOfficers();
   return c.json({
     chapters: CHAPTERS,
-    officers: Object.values(OFFICERS),
+    officers: officers.map(officerRowToPublic),
     district: DISTRICT,
     statuses: STATUS_LIST,
     workflowSteps: WORKFLOW_STEPS,

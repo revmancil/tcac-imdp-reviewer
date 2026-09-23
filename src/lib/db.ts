@@ -6,9 +6,10 @@
 
 import postgres from 'postgres';
 import { SEED_CANDIDATES } from '../../shared/seed-candidates.js';
-import { statusByKey, REQUIRED_DOCS } from '../../shared/reference.js';
+import { statusByKey, REQUIRED_DOCS, OFFICERS } from '../../shared/reference.js';
 import { computeSponsorRecommenderCheck } from '../../shared/word-count.js';
-import type { Candidate } from '../../shared/types.js';
+import { OFFICER_EMAILS } from './auth.js';
+import type { Candidate, OfficerPublic } from '../../shared/types.js';
 
 // Supabase's pooled connection (port 6543, pgbouncer in transaction mode)
 // is the right choice for a serverless deployment — it doesn't support
@@ -59,6 +60,19 @@ CREATE TABLE IF NOT EXISTS officer_credentials (
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_officer_credentials_email ON officer_credentials(email);
+CREATE TABLE IF NOT EXISTS officers (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  title       TEXT NOT NULL,
+  initials    TEXT NOT NULL,
+  area        INTEGER,
+  tier        TEXT NOT NULL,
+  scope       TEXT NOT NULL,
+  email       TEXT NOT NULL,
+  active      INTEGER NOT NULL DEFAULT 1,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_officers_active ON officers(active);
 `;
 
 let schemaReady = false;
@@ -66,8 +80,30 @@ let schemaReady = false;
 export async function ensureReady() {
   if (!schemaReady) {
     await sql.unsafe(SCHEMA_SQL);
+    await ensureOfficersSeeded();
     schemaReady = true;
   }
+}
+
+// One-time self-heal: the `officers` table replaces the OFFICERS/
+// OFFICER_EMAILS objects that used to be hardcoded in shared/reference.ts
+// and src/lib/auth.ts. The very first request after this deploys seeds the
+// table from that same hardcoded snapshot (same ids, so existing
+// officer_credentials rows keep matching) -- after that, the app never
+// reads OFFICERS/OFFICER_EMAILS again, and admins manage officers from the
+// Officer Access screen instead.
+async function ensureOfficersSeeded() {
+  const rows = await sql<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM officers`;
+  if (rows[0]?.n) return;
+  const seed = Object.values(OFFICERS)
+    .map((o) => ({ ...o, email: OFFICER_EMAILS[o.id] }))
+    .filter((o) => !!o.email);
+  if (seed.length === 0) return;
+  await sql.begin((tx) => Promise.all(seed.map((o) => tx`
+    INSERT INTO officers (id, name, title, initials, area, tier, scope, email, active)
+    VALUES (${o.id}, ${o.name}, ${o.title}, ${o.initials}, ${o.area ?? null}, ${o.tier}, ${JSON.stringify(o.scope)}, ${o.email}, 1)
+    ON CONFLICT (id) DO NOTHING
+  `)));
 }
 
 // Not called automatically -- ensureReady() used to auto-run this whenever
@@ -360,4 +396,91 @@ export async function setPassword(officerId: string, hash: string, salt: string,
     SET password_hash = ${hash}, password_salt = ${salt}, iterations = ${iterations}, must_change = ${mustChange ? 1 : 0}, failed_attempts = 0, locked_until = NULL, updated_at = now()
     WHERE officer_id = ${officerId}
   `;
+}
+
+// ---------------------------------------------------------------------------
+// Officers (directory + role/scope -- see migrations/0003_officers.sql)
+// ---------------------------------------------------------------------------
+
+export interface OfficerRow {
+  id: string;
+  name: string;
+  title: string;
+  initials: string;
+  area: number | null;
+  tier: 'district' | 'area';
+  scope: 'all' | number[];
+  email: string;
+  active: boolean;
+}
+
+function rowToOfficer(row: Record<string, any>): OfficerRow {
+  return {
+    id: row.id,
+    name: row.name,
+    title: row.title,
+    initials: row.initials,
+    area: row.area,
+    tier: row.tier,
+    scope: JSON.parse(row.scope),
+    email: row.email,
+    active: !!row.active,
+  };
+}
+
+export function officerRowToPublic(o: OfficerRow): OfficerPublic {
+  return { id: o.id, name: o.name, title: o.title, initials: o.initials, area: o.area ?? undefined, tier: o.tier, scope: o.scope };
+}
+
+export async function listOfficers(includeInactive = false): Promise<OfficerRow[]> {
+  await ensureReady();
+  const rows = includeInactive
+    ? await sql`SELECT * FROM officers ORDER BY tier DESC, area NULLS FIRST, name`
+    : await sql`SELECT * FROM officers WHERE active = 1 ORDER BY tier DESC, area NULLS FIRST, name`;
+  return (rows as any[]).map(rowToOfficer);
+}
+
+export async function getOfficer(id: string): Promise<OfficerRow | null> {
+  await ensureReady();
+  const rows = await sql`SELECT * FROM officers WHERE id = ${id}`;
+  return rows.length ? rowToOfficer(rows[0]) : null;
+}
+
+export async function officerIdExists(id: string): Promise<boolean> {
+  await ensureReady();
+  const rows = await sql`SELECT 1 AS x FROM officers WHERE id = ${id}`;
+  return rows.length > 0;
+}
+
+export async function countActiveDistrictOfficers(excludingId?: string): Promise<number> {
+  await ensureReady();
+  const rows = await sql<{ n: number }[]>`
+    SELECT COUNT(*)::int AS n FROM officers
+    WHERE active = 1 AND tier = 'district' AND (${excludingId ?? null}::text IS NULL OR id != ${excludingId ?? null})
+  `;
+  return rows[0]?.n || 0;
+}
+
+export async function createOfficer(o: Omit<OfficerRow, 'active'>): Promise<OfficerRow> {
+  await ensureReady();
+  await sql`
+    INSERT INTO officers (id, name, title, initials, area, tier, scope, email, active)
+    VALUES (${o.id}, ${o.name}, ${o.title}, ${o.initials}, ${o.area}, ${o.tier}, ${JSON.stringify(o.scope)}, ${o.email.trim()}, 1)
+  `;
+  return { ...o, active: true };
+}
+
+export async function updateOfficer(id: string, fields: Partial<Omit<OfficerRow, 'id'>>): Promise<OfficerRow | null> {
+  await ensureReady();
+  const existing = await getOfficer(id);
+  if (!existing) return null;
+  const merged: OfficerRow = { ...existing, ...fields };
+  await sql`
+    UPDATE officers SET
+      name = ${merged.name}, title = ${merged.title}, initials = ${merged.initials},
+      area = ${merged.area}, tier = ${merged.tier}, scope = ${JSON.stringify(merged.scope)},
+      email = ${merged.email.trim()}, active = ${merged.active ? 1 : 0}
+    WHERE id = ${id}
+  `;
+  return merged;
 }

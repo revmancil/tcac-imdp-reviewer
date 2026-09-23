@@ -3,7 +3,6 @@ import { cors } from 'hono/cors'
 
 import {
   CHAPTERS,
-  OFFICERS,
   DISTRICT,
   STATUS_LIST,
   WORKFLOW_STEPS,
@@ -33,11 +32,19 @@ import {
   recordFailedLogin,
   resetFailedLogins,
   setPassword,
+  listOfficers,
+  getOfficer,
+  officerIdExists,
+  countActiveDistrictOfficers,
+  createOfficer,
+  updateOfficer,
+  officerRowToPublic,
+  type OfficerRow,
 } from './lib/db.js'
 import { putFile, getFile } from './lib/storage.js'
 import { makeCandidate, parseCandidateCSV, buildCSVTemplate } from './lib/candidate-factory.js'
 import { hashPassword, verifyPassword, randomTempPassword } from './lib/password.js'
-import { OFFICER_EMAILS, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth.js'
+import { MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth.js'
 import { extractHeadshot, parseApplicationFields, extractLetterTexts, extractPdfText, extractMembershipFeesBalance } from './lib/pdf-parse.js'
 import { redactSensitiveInfo } from './lib/redact.js'
 import { countWords, MIN_ESSAY_WORDS } from '../shared/word-count.js'
@@ -79,10 +86,10 @@ type SessionOfficer = OfficerPublic & { mustChangePassword?: boolean }
 async function currentOfficer(c: any): Promise<SessionOfficer | null> {
   const id = await readSession(c, secretOf())
   if (!id) return null
-  const officer = OFFICERS[id]
-  if (!officer) return null
+  const row = await getOfficer(id)
+  if (!row || !row.active) return null
   const cred = await getCredentialByOfficerId(id)
-  return { ...officer, mustChangePassword: cred ? cred.must_change === 1 : false }
+  return { ...officerRowToPublic(row), mustChangePassword: cred ? cred.must_change === 1 : false }
 }
 
 function allowedChapterKeysFor(officer: OfficerPublic | null): string[] | 'all' {
@@ -106,8 +113,9 @@ app.post('/auth/signin', async (c) => {
   const cred = await getCredentialByEmail(email)
   if (!cred) return c.json({ error: genericError }, 401)
 
-  const officer = OFFICERS[cred.officer_id]
-  if (!officer) return c.json({ error: genericError }, 401)
+  const officerRow = await getOfficer(cred.officer_id)
+  if (!officerRow || !officerRow.active) return c.json({ error: genericError }, 401)
+  const officer = officerRowToPublic(officerRow)
 
   if (cred.locked_until && new Date(cred.locked_until).getTime() > Date.now()) {
     const minutesLeft = Math.ceil((new Date(cred.locked_until).getTime() - Date.now()) / 60_000)
@@ -194,13 +202,14 @@ app.get('/auth/admin/officers', async (c) => {
   const denied = requireDistrictTier(c, officer)
   if (denied) return denied
 
-  const metas = await listCredentialsMeta()
+  const [officerRows, metas] = await Promise.all([listOfficers(true), listCredentialsMeta()])
   const byId = new Map(metas.map((m) => [m.officer_id, m]))
-  const rows = Object.values(OFFICERS).map((o) => {
+  const rows = officerRows.map((o) => {
     const meta = byId.get(o.id)
     return {
-      officer: o,
-      email: meta?.email || OFFICER_EMAILS[o.id] || null,
+      officer: officerRowToPublic(o),
+      active: o.active,
+      email: meta?.email || o.email || null,
       hasCredential: !!meta,
       mustChangePassword: meta ? meta.must_change === 1 : false,
       lockedUntil: meta?.locked_until || null,
@@ -210,6 +219,122 @@ app.get('/auth/admin/officers', async (c) => {
   return c.json({ rows })
 })
 
+// Turns a display name + optional area into a URL/id-safe slug matching the
+// existing convention (surname, or surname-area for area-tier officers —
+// e.g. "tanner-4041"), then disambiguates against any existing officer id.
+function slugify(s: string): string {
+  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
+function deriveOfficerId(name: string, area?: number | null): string {
+  const parts = name.replace(/^Bro\.\s*/i, '').trim().split(/\s+/)
+  const surname = slugify(parts[parts.length - 1] || 'officer') || 'officer'
+  return area ? `${surname}-${area}` : surname
+}
+
+async function uniqueOfficerId(base: string): Promise<string> {
+  let candidate = base
+  let n = 2
+  while (await officerIdExists(candidate)) {
+    candidate = `${base}-${n}`
+    n++
+  }
+  return candidate
+}
+
+app.post('/auth/admin/officers', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireDistrictTier(c, officer)
+  if (denied) return denied
+
+  const body = await c.req.json<{ name?: string; title?: string; initials?: string; tier?: string; area?: number; email?: string }>()
+    .catch(() => ({}) as { name?: string; title?: string; initials?: string; tier?: string; area?: number; email?: string })
+  const name = (body.name || '').trim()
+  const title = (body.title || '').trim()
+  const initials = (body.initials || '').trim().toUpperCase()
+  const tier = body.tier === 'district' ? 'district' : body.tier === 'area' ? 'area' : null
+  const area = body.area ? Number(body.area) : null
+  const email = (body.email || '').trim()
+
+  if (!name || !title || !initials || !tier || !email) {
+    return c.json({ error: 'Name, title, initials, tier, and email are all required.' }, 422)
+  }
+  if (tier === 'area' && !area) {
+    return c.json({ error: 'Area-tier officers need an area.' }, 422)
+  }
+
+  const id = await uniqueOfficerId(deriveOfficerId(name, area))
+  const scope: 'all' | number[] = tier === 'district' ? 'all' : [area!]
+  const created = await createOfficer({ id, name, title, initials, area, tier, scope, email })
+  await logAudit('system', officer!.id, 'officer_added', `${officer!.name} added officer ${created.name} (${created.id})`)
+
+  return c.json({ officer: officerRowToPublic(created) })
+})
+
+app.patch('/auth/admin/officers/:id', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireDistrictTier(c, officer)
+  if (denied) return denied
+
+  const targetId = c.req.param('id')
+  const existing = await getOfficer(targetId)
+  if (!existing) return c.json({ error: 'Unknown officer' }, 404)
+
+  const body = await c.req.json<{ name?: string; title?: string; initials?: string; tier?: string; area?: number | null; email?: string; active?: boolean }>()
+    .catch(() => ({}) as { name?: string; title?: string; initials?: string; tier?: string; area?: number | null; email?: string; active?: boolean })
+
+  const fields: Partial<Omit<OfficerRow, 'id'>> = {}
+  if (body.name !== undefined) fields.name = body.name.trim()
+  if (body.title !== undefined) fields.title = body.title.trim()
+  if (body.initials !== undefined) fields.initials = body.initials.trim().toUpperCase()
+  if (body.email !== undefined) fields.email = body.email.trim()
+
+  const tier = body.tier === 'district' ? 'district' : body.tier === 'area' ? 'area' : existing.tier
+  const area = body.area !== undefined ? (body.area ? Number(body.area) : null) : existing.area
+  if (tier === 'area' && !area) return c.json({ error: 'Area-tier officers need an area.' }, 422)
+  if (body.tier !== undefined || body.area !== undefined) {
+    fields.tier = tier
+    fields.area = area
+    fields.scope = tier === 'district' ? 'all' : [area!]
+  }
+
+  if (body.active === false && existing.tier === 'district') {
+    const remaining = await countActiveDistrictOfficers(existing.id)
+    if (remaining === 0) {
+      return c.json({ error: 'Cannot remove the last active district-tier officer.' }, 400)
+    }
+  }
+  if (body.active !== undefined) fields.active = body.active
+
+  const updated = await updateOfficer(targetId, fields)
+  if (!updated) return c.json({ error: 'Unknown officer' }, 404)
+  await logAudit('system', officer!.id, 'officer_updated', `${officer!.name} updated officer ${updated.name} (${updated.id})`)
+
+  return c.json({ officer: officerRowToPublic(updated) })
+})
+
+app.delete('/auth/admin/officers/:id', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireDistrictTier(c, officer)
+  if (denied) return denied
+
+  const targetId = c.req.param('id')
+  const existing = await getOfficer(targetId)
+  if (!existing) return c.json({ error: 'Unknown officer' }, 404)
+
+  if (existing.tier === 'district') {
+    const remaining = await countActiveDistrictOfficers(existing.id)
+    if (remaining === 0) {
+      return c.json({ error: 'Cannot remove the last active district-tier officer.' }, 400)
+    }
+  }
+
+  await updateOfficer(targetId, { active: false })
+  await logAudit('system', officer!.id, 'officer_removed', `${officer!.name} removed officer ${existing.name} (${existing.id})`)
+
+  return c.json({ ok: true })
+})
+
 app.post('/auth/admin/reset-password', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireDistrictTier(c, officer)
@@ -217,10 +342,10 @@ app.post('/auth/admin/reset-password', async (c) => {
 
   const body = await c.req.json<{ officerId?: string }>().catch(() => ({}) as { officerId?: string })
   const targetId = body.officerId || ''
-  const target = OFFICERS[targetId]
-  if (!target) return c.json({ error: 'Unknown officer' }, 400)
+  const target = await getOfficer(targetId)
+  if (!target || !target.active) return c.json({ error: 'Unknown officer' }, 400)
 
-  const email = OFFICER_EMAILS[targetId]
+  const email = target.email
   if (!email) return c.json({ error: 'No login email is configured for that officer.' }, 400)
 
   const tempPassword = randomTempPassword()
@@ -244,14 +369,15 @@ app.post('/auth/bootstrap', async (c) => {
 
   const existing = await listCredentialsMeta()
   const existingIds = new Set(existing.map((m) => m.officer_id))
-  const toSeed = Object.values(OFFICERS).filter((o) => !existingIds.has(o.id))
+  const allOfficers = await listOfficers()
+  const toSeed = allOfficers.filter((o) => !existingIds.has(o.id))
   if (toSeed.length === 0) {
     return c.json({ error: 'All officers already have credentials. Use /api/auth/admin/reset-password instead.' }, 409)
   }
 
   const results: { officerId: string; name: string; email: string; tempPassword: string }[] = []
   for (const o of toSeed) {
-    const email = OFFICER_EMAILS[o.id]
+    const email = o.email
     if (!email) continue
     const tempPassword = randomTempPassword()
     const { hash, salt, iterations } = await hashPassword(tempPassword)
@@ -265,10 +391,11 @@ app.post('/auth/bootstrap', async (c) => {
 // Reference data
 // ---------------------------------------------------------------------------
 
-app.get('/reference', (c) => {
+app.get('/reference', async (c) => {
+  const officers = await listOfficers()
   return c.json({
     chapters: CHAPTERS,
-    officers: Object.values(OFFICERS),
+    officers: officers.map(officerRowToPublic),
     district: DISTRICT,
     statuses: STATUS_LIST,
     workflowSteps: WORKFLOW_STEPS,

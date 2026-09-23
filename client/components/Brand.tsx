@@ -45,6 +45,7 @@ export function Icon({ name, size = 16 }: { name: string; size?: number }) {
     case 'user': return <svg {...props}><circle cx="12" cy="8" r="4" /><path d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21" /></svg>
     case 'send': return <svg {...props}><path d="M4 4 L20 12 L4 20 L7 12 Z M7 12 H14" /></svg>
     case 'clock': return <svg {...props}><circle cx="12" cy="12" r="9" /><path d="M12 7 V12 L15 14" /></svg>
+    case 'plus': return <svg {...props}><path d="M12 4 V20 M4 12 H20" /></svg>
     default: return null
   }
 }

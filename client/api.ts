@@ -46,6 +46,12 @@ export const api = {
   adminListOfficers: () => req<{ rows: AdminOfficerRow[] }>('/api/auth/admin/officers'),
   adminResetPassword: (officerId: string) =>
     req<{ officerId: string; email: string; tempPassword: string }>('/api/auth/admin/reset-password', { method: 'POST', body: JSON.stringify({ officerId }) }),
+  adminCreateOfficer: (body: { name: string; title: string; initials: string; tier: 'district' | 'area'; area?: number; email: string }) =>
+    req<{ officer: OfficerPublic }>('/api/auth/admin/officers', { method: 'POST', body: JSON.stringify(body) }),
+  adminUpdateOfficer: (id: string, body: Partial<{ name: string; title: string; initials: string; tier: 'district' | 'area'; area: number | null; email: string; active: boolean }>) =>
+    req<{ officer: OfficerPublic }>(`/api/auth/admin/officers/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  adminRemoveOfficer: (id: string) =>
+    req<{ ok: true }>(`/api/auth/admin/officers/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   listCandidates: (params: Record<string, string | undefined>) => {
     const qs = new URLSearchParams()

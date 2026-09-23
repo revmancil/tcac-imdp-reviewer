@@ -30,6 +30,7 @@ export interface OfficerPublic {
 // Row shape returned by /api/auth/admin/officers (district-tier only).
 export interface AdminOfficerRow {
   officer: OfficerPublic;
+  active: boolean;
   email: string | null;
   hasCredential: boolean;
   mustChangePassword: boolean;

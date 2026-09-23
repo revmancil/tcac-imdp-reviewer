@@ -4,6 +4,8 @@ import { Avatar, Icon, ShieldMark } from '../components/Brand'
 import { api } from '../api'
 import type { AdminOfficerRow } from '../../shared/types'
 
+const EMPTY_NEW_OFFICER = { name: '', title: '', initials: '', tier: 'area' as 'district' | 'area', area: '', email: '' }
+
 // District-tier-only screen (District Director / Chief Dean of Membership
 // Intake / Chief Administrator) for issuing one-time temporary passwords.
 // There's no email/SSO service wired up, so the admin relays the generated
@@ -23,10 +25,20 @@ export default function Admin() {
   const [clearError, setClearError] = useState('')
   const [clearedCount, setClearedCount] = useState<number | null>(null)
 
+  const [areaNames, setAreaNames] = useState<Record<string, string>>({})
+  const [addOpen, setAddOpen] = useState(false)
+  const [newOfficer, setNewOfficer] = useState(EMPTY_NEW_OFFICER)
+  const [adding, setAdding] = useState(false)
+  const [addError, setAddError] = useState('')
+  const [removeBusyId, setRemoveBusyId] = useState<string | null>(null)
+
   const load = () => {
     api.adminListOfficers().then((r) => setRows(r.rows)).catch((e) => setError(e.message))
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    api.reference().then((r) => setAreaNames(r.district.areaNames)).catch(() => {})
+  }, [])
 
   const reset = async (officerId: string) => {
     setBusyId(officerId)
@@ -39,6 +51,63 @@ export default function Admin() {
       setError(e.message || 'Could not reset password.')
     } finally {
       setBusyId(null)
+    }
+  }
+
+  const addOfficer = async () => {
+    setAddError('')
+    if (!newOfficer.name.trim() || !newOfficer.title.trim() || !newOfficer.initials.trim() || !newOfficer.email.trim()) {
+      setAddError('Name, title, initials, and email are all required.')
+      return
+    }
+    if (newOfficer.tier === 'area' && !newOfficer.area) {
+      setAddError('Pick an area for an area-tier officer.')
+      return
+    }
+    setAdding(true)
+    try {
+      await api.adminCreateOfficer({
+        name: newOfficer.name.trim(),
+        title: newOfficer.title.trim(),
+        initials: newOfficer.initials.trim(),
+        tier: newOfficer.tier,
+        area: newOfficer.area ? Number(newOfficer.area) : undefined,
+        email: newOfficer.email.trim(),
+      })
+      setNewOfficer(EMPTY_NEW_OFFICER)
+      setAddOpen(false)
+      load()
+    } catch (e: any) {
+      setAddError(e.message || 'Could not add officer.')
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const removeOfficer = async (officerId: string, name: string) => {
+    if (!confirm(`Remove ${name} from the TCAC officer directory? They'll no longer be able to sign in. This can be undone by reactivating them.`)) return
+    setRemoveBusyId(officerId)
+    setError('')
+    try {
+      await api.adminRemoveOfficer(officerId)
+      load()
+    } catch (e: any) {
+      setError(e.message || 'Could not remove officer.')
+    } finally {
+      setRemoveBusyId(null)
+    }
+  }
+
+  const reactivateOfficer = async (officerId: string) => {
+    setRemoveBusyId(officerId)
+    setError('')
+    try {
+      await api.adminUpdateOfficer(officerId, { active: true })
+      load()
+    } catch (e: any) {
+      setError(e.message || 'Could not reactivate officer.')
+    } finally {
+      setRemoveBusyId(null)
     }
   }
 
@@ -80,14 +149,44 @@ export default function Admin() {
             <div>
               <div className="eyebrow">TCAC · District Administration</div>
               <h1 className="banner-title">Officer Access</h1>
-              <div className="banner-sub">Issue one-time temporary passwords for officers who are locked out or new to the roster.</div>
+              <div className="banner-sub">Add, remove, and issue one-time temporary passwords for TCAC officers.</div>
             </div>
           </div>
+          <button className="btn-secondary sm" onClick={() => { setAddOpen((v) => !v); setAddError('') }}>
+            <Icon name="plus" size={13} /> {addOpen ? 'Cancel' : 'Add Officer'}
+          </button>
         </div>
         <div className="banner-rule" />
       </header>
 
       {error && <div className="signin-error">{error}</div>}
+
+      {addOpen && (
+        <div className="danger-zone-confirm" style={{ marginBottom: 16 }}>
+          {addError && <div className="signin-error">{addError}</div>}
+          <div className="add-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            <input className="add-input" placeholder="Full name (e.g. Bro. John Smith)" value={newOfficer.name} onChange={(e) => setNewOfficer((f) => ({ ...f, name: e.target.value }))} />
+            <input className="add-input" placeholder="Title (e.g. Assistant Area Director)" value={newOfficer.title} onChange={(e) => setNewOfficer((f) => ({ ...f, title: e.target.value }))} />
+            <input className="add-input" placeholder="Initials" maxLength={3} value={newOfficer.initials} onChange={(e) => setNewOfficer((f) => ({ ...f, initials: e.target.value }))} />
+            <select className="add-select" value={newOfficer.tier} onChange={(e) => setNewOfficer((f) => ({ ...f, tier: e.target.value as 'district' | 'area', area: e.target.value === 'district' ? '' : f.area }))}>
+              <option value="area">Area-tier</option>
+              <option value="district">District-tier</option>
+            </select>
+            {newOfficer.tier === 'area' && (
+              <select className="add-select" value={newOfficer.area} onChange={(e) => setNewOfficer((f) => ({ ...f, area: e.target.value }))}>
+                <option value="">Select area…</option>
+                {Object.entries(areaNames).map(([code, label]) => (
+                  <option key={code} value={code}>{label}</option>
+                ))}
+              </select>
+            )}
+            <input className="add-input" placeholder="Login email" value={newOfficer.email} onChange={(e) => setNewOfficer((f) => ({ ...f, email: e.target.value }))} />
+          </div>
+          <div className="danger-zone-confirm-row" style={{ marginTop: 10 }}>
+            <button className="btn-primary sm" disabled={adding} onClick={addOfficer}>{adding ? 'Adding…' : 'Add Officer'}</button>
+          </div>
+        </div>
+      )}
 
       {issued && (
         <div className="scope-banner" style={{ alignItems: 'flex-start' }}>
@@ -113,14 +212,14 @@ export default function Admin() {
               <th>Officer</th>
               <th>Login Email</th>
               <th style={{ width: 140 }}>Status</th>
-              <th style={{ width: 140 }}></th>
+              <th style={{ width: 240 }}></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
               const locked = row.lockedUntil && new Date(row.lockedUntil).getTime() > Date.now()
               return (
-                <tr key={row.officer.id} className="row">
+                <tr key={row.officer.id} className="row" style={row.active ? undefined : { opacity: 0.5 }}>
                   <td><Avatar initials={row.officer.initials} size={32} /></td>
                   <td>
                     <div className="cand-name">{row.officer.name}</div>
@@ -130,19 +229,39 @@ export default function Admin() {
                   </td>
                   <td className="submitted">{row.email || '—'}</td>
                   <td>
-                    {!row.hasCredential && <span className="check-flag"><Icon name="warn" size={12} /> No credential</span>}
-                    {row.hasCredential && locked && <span className="check-flag"><Icon name="warn" size={12} /> Locked ({row.failedAttempts} attempts)</span>}
-                    {row.hasCredential && !locked && row.mustChangePassword && <span className="check-flag"><Icon name="clock" size={12} /> Must change password</span>}
-                    {row.hasCredential && !locked && !row.mustChangePassword && <span className="check-ok"><Icon name="check" size={12} /> Active</span>}
+                    {!row.active && <span className="check-flag"><Icon name="x" size={12} /> Removed</span>}
+                    {row.active && !row.hasCredential && <span className="check-flag"><Icon name="warn" size={12} /> No credential</span>}
+                    {row.active && row.hasCredential && locked && <span className="check-flag"><Icon name="warn" size={12} /> Locked ({row.failedAttempts} attempts)</span>}
+                    {row.active && row.hasCredential && !locked && row.mustChangePassword && <span className="check-flag"><Icon name="clock" size={12} /> Must change password</span>}
+                    {row.active && row.hasCredential && !locked && !row.mustChangePassword && <span className="check-ok"><Icon name="check" size={12} /> Active</span>}
                   </td>
-                  <td>
-                    <button
-                      className="btn-secondary sm"
-                      disabled={busyId === row.officer.id || !row.email}
-                      onClick={() => reset(row.officer.id)}
-                    >
-                      {row.hasCredential ? 'Reset Password' : 'Issue Password'}
-                    </button>
+                  <td style={{ display: 'flex', gap: 8 }}>
+                    {row.active ? (
+                      <>
+                        <button
+                          className="btn-secondary sm"
+                          disabled={busyId === row.officer.id || !row.email}
+                          onClick={() => reset(row.officer.id)}
+                        >
+                          {row.hasCredential ? 'Reset Password' : 'Issue Password'}
+                        </button>
+                        <button
+                          className="btn-danger sm"
+                          disabled={removeBusyId === row.officer.id}
+                          onClick={() => removeOfficer(row.officer.id, row.officer.name)}
+                        >
+                          Remove
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="btn-secondary sm"
+                        disabled={removeBusyId === row.officer.id}
+                        onClick={() => reactivateOfficer(row.officer.id)}
+                      >
+                        Reactivate
+                      </button>
+                    )}
                   </td>
                 </tr>
               )
