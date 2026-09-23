@@ -1276,6 +1276,12 @@ input, select, textarea { font-family: inherit; }
 }
 .hs-caption { font-size: 12px; font-style: italic; color: var(--cream); }
 .hs-meta { font-size: 10px; color: #8A7A50; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.06em; }
+.headshot-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4/5;
+  object-fit: cover;
+}
 
 /* Statement */
 .statement { font-size: 13px; line-height: 1.7; }
@@ -3284,6 +3290,20 @@ input, select, textarea { font-family: inherit; }
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px 20px;
+}
+
+.application-upload-done { background: var(--paper); }
+.application-upload-preview {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.application-upload-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 2px;
+  border: 1px solid var(--line);
 }
 
 .ff { }

@@ -314,14 +314,22 @@ function DocPreview({
           <div className="doc-pdf-header">
             <div>
               <div className="pdf-title">{meta.label}</div>
-              <div className="pdf-sub"><Icon name="file" size={11} /> {doc.file.split('/').pop() || 'attached.pdf'} · PDF attached</div>
+              <div className="pdf-sub"><Icon name="file" size={11} /> {doc.file.split('/').pop() || 'attached file'} · {docKey === 'headshot' ? 'Photo attached' : 'PDF attached'}</div>
             </div>
             <div className="doc-tools">
               <button className="tool-btn tool-btn-replace" onClick={onStartReplace}><Icon name="download" size={13} /> Replace file</button>
               <a href={doc.file} target="_blank" rel="noopener" className="tool-btn"><Icon name="download" size={13} /> Open in New Tab</a>
             </div>
           </div>
-          <iframe src={doc.file} className="doc-pdf-frame" title={meta.label} />
+          {docKey === 'headshot' ? (
+            <div className="headshot-page">
+              <div className="headshot-frame">
+                <img src={doc.file} alt={`${candidate.name} headshot`} className="headshot-photo" />
+              </div>
+            </div>
+          ) : (
+            <iframe src={doc.file} className="doc-pdf-frame" title={meta.label} />
+          )}
           {doc.note && (
             <div className="doc-flag-annot doc-flag-inline"><Icon name="warn" size={14} /><span>Auto-flag: {doc.note}</span></div>
           )}

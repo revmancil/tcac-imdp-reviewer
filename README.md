@@ -21,7 +21,7 @@ Hono app on Vercel + Supabase instead of the original static HTML prototype.
 - **Roster** (`/roster`) — stat cards, search, status/type/chapter filters, sort, scope banner for Area Directors, links to Missing Items + Add Candidate.
 - **Candidate Detail** (`/candidates/:id`) — header, Sponsor/Recommender cards with "Preview letter" modal (parsed letter text) and "Open in App" (jumps to Application doc tab), Application Workflow timeline, Automated Review strip, 3-column split (document tab rail / PDF or mock document viewer / checklist + notes + activity), drag-and-drop upload and "Replace file" flow wired to a real `POST /api/candidates/:id/docs/:docKey` endpoint that stores the file in Supabase Storage and updates Postgres.
 - **Missing Items Report** (`/missing`) — grouped by document type, scoped to the officer, links back into each candidate.
-- **Add Candidate** (`/add`) — Manual entry form (validated client + server) and CSV bulk import (server-side parse/validate/preview/commit) with a downloadable CSV template.
+- **Add Candidate** (`/add`) — Manual entry form (validated client + server) and CSV bulk import (server-side parse/validate/preview/commit) with a downloadable CSV template. The manual form can also be auto-filled from an uploaded **Application PDF**: the server renders the PDF and OCRs it (Tesseract, via `tesseract.js`) to pull candidate fields, and extracts the embedded headshot photo directly from the PDF (via `mupdf`) — both are best-effort (the officer reviews/corrects before submitting), since applications aren't a structured/fillable PDF format. On submit, the original PDF and extracted headshot are attached to the new candidate as its `application` and `headshot` documents.
 - **Access control** — enforced **server-side** in every API route (`officerCanSeeChapterKey`) using the officer's area scope, not just filtered client-side; deep-linking to an out-of-scope candidate renders the "Access Restricted" screen from the design.
 - Candidate #2897040 (Nazhir Carter, Rho Nu Lambda) ships with the 8 real reference PDFs from the handoff (served from `/static/pdfs/2897040/`) plus the parsed sponsor/recommender letters.
 
@@ -32,6 +32,7 @@ Hono app on Vercel + Supabase instead of the original static HTML prototype.
 - `GET /api/candidates?q=&status=&type=&chapter=&sort=` (scoped to signed-in officer)
 - `GET /api/candidates/:id` (403 `access_denied` with chapter/area info if out of scope)
 - `POST /api/candidates` (manual add) · `POST /api/candidates/csv/preview` · `POST /api/candidates/csv/commit` · `GET /api/candidates/csv-template`
+- `POST /api/candidates/parse-application` (multipart `file`) → best-effort OCR'd fields + extracted headshot (data URL), does not persist anything
 - `GET /api/candidates/missing-report`
 - `POST /api/candidates/:id/docs/:docKey` (multipart `file`) → stores in Supabase Storage, updates Postgres
 - `GET /api/files/*` — streams a Supabase Storage upload
@@ -58,6 +59,7 @@ static TS in `shared/reference.ts` — matches the handoff's `CHAPTERS`/`OFFICER
 - Reviewer notes / "Mark Complete" / "Request Docs" buttons are visual only (not wired to persistence) — same as the original design prototype.
 - CSV export and "Send Reminders" on the Missing Items report are visual only.
 - The "Modern Brotherhood" visual variant and the Tweaks panel from the design were intentionally **not** shipped (per the handoff README: Classic Collegiate is the shipping variant; the tweaks panel is a design-time affordance to strip).
+- **Application PDF auto-fill/OCR is tuned to one real layout** (a printed/exported screenshot with "Label" captions above boxed values — see `src/lib/pdf-parse.ts`), since that's the only real sample available. It degrades gracefully (skips a field/the headshot rather than guessing) when it doesn't recognize the layout, but hasn't been tested against genuinely different application formats. Its two dependencies (`mupdf`, `tesseract.js`) add real size to the deployed Vercel function — `tesseract.js-core` alone ships ~44MB of WASM (all SIMD-tier variants, since which one actually runs depends on Vercel's runtime and can't be pruned ahead of time safely); if a deploy ever fails on function size, that's the first place to look.
 
 ## Auth & access control
 

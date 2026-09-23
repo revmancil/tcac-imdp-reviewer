@@ -46,4 +46,9 @@ export const api = {
     form.append('file', file)
     return req<{ candidate: Candidate }>(`/api/candidates/${encodeURIComponent(candidateId)}/docs/${encodeURIComponent(docKey)}`, { method: 'POST', body: form })
   },
+  parseApplication: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return req<{ fields: Record<string, string>; headshotDataUrl: string | null }>('/api/candidates/parse-application', { method: 'POST', body: form })
+  },
 }

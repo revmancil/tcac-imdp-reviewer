@@ -1,8 +1,17 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '../components/Brand'
 import { useApp } from '../context'
 import { api } from '../api'
+
+function dataUrlToFile(dataUrl: string, filename: string): File {
+  const [header, base64] = dataUrl.split(',')
+  const mime = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg'
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new File([bytes], filename, { type: mime })
+}
 
 export default function Add() {
   const { officer } = useApp()
@@ -75,8 +84,27 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
   const [confirmedNew, setConfirmedNew] = useState<any>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  const [parsing, setParsing] = useState(false)
+  const [parseError, setParseError] = useState<string | null>(null)
+  const [parsedFrom, setParsedFrom] = useState<{ fileName: string; file: File; headshotDataUrl: string | null } | null>(null)
+
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [k]: e.target.value }))
   const setVal = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
+
+  const handleParseUpload = async (file: File | null | undefined) => {
+    if (!file) return
+    setParsing(true)
+    setParseError(null)
+    try {
+      const { fields, headshotDataUrl } = await api.parseApplication(file)
+      setForm((f) => ({ ...f, ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v)) }))
+      setParsedFrom({ fileName: file.name, file, headshotDataUrl })
+    } catch (err: any) {
+      setParseError(err.message || 'Could not read that PDF.')
+    } finally {
+      setParsing(false)
+    }
+  }
 
   const chapterOptions = useMemo(() => {
     if (!reference) return []
@@ -93,6 +121,20 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
       const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(' ')
       const { candidate, errors: serverErrors } = await api.createCandidate({ ...form, name: fullName })
       if (serverErrors) { setErrors(serverErrors); return }
+
+      if (parsedFrom) {
+        try {
+          await api.uploadDoc(candidate.id, 'application', parsedFrom.file)
+          if (parsedFrom.headshotDataUrl) {
+            const ext = parsedFrom.headshotDataUrl.startsWith('data:image/png') ? 'png' : 'jpg'
+            await api.uploadDoc(candidate.id, 'headshot', dataUrlToFile(parsedFrom.headshotDataUrl, `headshot.${ext}`))
+          }
+        } catch {
+          // Non-fatal -- the candidate record already exists; the officer can
+          // attach these documents manually from the detail page instead.
+        }
+      }
+
       setConfirmedNew(candidate)
     } catch (err: any) {
       if (err.data?.errors) setErrors(err.data.errors)
@@ -125,6 +167,14 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
 
   return (
     <form className="add-form" onSubmit={handleSubmit}>
+      <ApplicationUpload
+        parsing={parsing}
+        parseError={parseError}
+        parsedFrom={parsedFrom}
+        onUpload={handleParseUpload}
+        onClear={() => { setParsedFrom(null); setParseError(null) }}
+      />
+
       <div className="add-form-section">
         <div className="add-form-section-head">
           <div className="add-form-section-num">1</div>
@@ -251,6 +301,66 @@ function ManualForm({ onCandidateAdded }: { onCandidateAdded: (id: string | null
         <button type="submit" className="btn-primary" disabled={submitting}><Icon name="check" size={13} /> Create Candidate Record</button>
       </div>
     </form>
+  )
+}
+
+function ApplicationUpload({
+  parsing, parseError, parsedFrom, onUpload, onClear,
+}: {
+  parsing: boolean
+  parseError: string | null
+  parsedFrom: { fileName: string; file: File; headshotDataUrl: string | null } | null
+  onUpload: (file: File | null | undefined) => void
+  onClear: () => void
+}) {
+  const [dragOver, setDragOver] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  if (parsedFrom) {
+    return (
+      <div className="add-form-section application-upload-done">
+        <div className="add-form-section-head">
+          <div className="add-form-section-num"><Icon name="check" size={14} /></div>
+          <div>
+            <div className="add-form-section-title">Application Uploaded</div>
+            <div className="add-form-section-sub">
+              Parsed <b>{parsedFrom.fileName}</b> — the fields below were auto-filled. Review and correct anything before submitting.
+              {parsedFrom.headshotDataUrl ? ' A headshot was also found and will be attached.' : ' No headshot photo was found in the PDF — you can attach one after the candidate is created.'}
+            </div>
+          </div>
+        </div>
+        <div className="application-upload-preview">
+          {parsedFrom.headshotDataUrl && <img src={parsedFrom.headshotDataUrl} alt="Extracted headshot" className="application-upload-thumb" />}
+          <button type="button" className="btn-secondary sm" onClick={onClear}>Upload a different file</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="add-form-section">
+      <div className="add-form-section-head">
+        <div className="add-form-section-num"><Icon name="file" size={14} /></div>
+        <div>
+          <div className="add-form-section-title">Upload Application <span className="optional-tag">Optional</span></div>
+          <div className="add-form-section-sub">Upload the candidate's Application PDF to auto-fill the fields below, including the headshot photo — or skip this and fill out the form manually.</div>
+        </div>
+      </div>
+      <div
+        className={`upload-dropzone ${dragOver ? 'upload-dropzone-over' : ''}`}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); onUpload(e.dataTransfer.files[0]) }}
+        onClick={() => inputRef.current?.click()}
+      >
+        <input ref={inputRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => onUpload(e.target.files?.[0])} />
+        <div className="dz-icon"><Icon name="file" size={40} /></div>
+        <div className="dz-title">{parsing ? 'Reading application…' : 'Upload Application PDF'}</div>
+        <div className="dz-drop-line">Drag &amp; drop a PDF here, or <b>click to browse</b></div>
+        <div className="dz-role">Fields are parsed automatically — you'll review everything before the record is created</div>
+      </div>
+      {parseError && <div className="ff-error" style={{ marginTop: 10 }}>{parseError}</div>}
+    </div>
   )
 }
 

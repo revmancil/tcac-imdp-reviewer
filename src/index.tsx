@@ -35,6 +35,7 @@ import { putFile, getFile } from './lib/storage.js'
 import { makeCandidate, parseCandidateCSV, buildCSVTemplate } from './lib/candidate-factory.js'
 import { hashPassword, verifyPassword, randomTempPassword } from './lib/password.js'
 import { OFFICER_EMAILS, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth.js'
+import { extractHeadshot, parseApplicationFields } from './lib/pdf-parse.js'
 
 const app = new Hono().basePath('/api')
 
@@ -344,6 +345,45 @@ app.post('/candidates/csv/commit', async (c) => {
     await logAudit(cand.id, officer!.id, 'csv_import', `Imported via CSV by ${officer!.name}`)
   }
   return c.json({ inserted: toInsert.length })
+})
+
+// Best-effort auto-fill: OCRs an uploaded Application PDF and returns parsed
+// candidate fields plus the extracted headshot photo (as a data URL) so the
+// Add Candidate form can pre-populate before the officer reviews/corrects it
+// and submits. Nothing is persisted here -- the client re-uploads the same
+// PDF (as the `application` doc) and the extracted headshot (as the
+// `headshot` doc) via the existing doc-upload endpoint after the candidate
+// record is actually created.
+app.post('/candidates/parse-application', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireOfficer(c, officer)
+  if (denied) return denied
+
+  const form = await c.req.formData()
+  const file = form.get('file')
+  if (!(file instanceof File)) return c.json({ error: 'No file provided' }, 400)
+  if (file.size > 25 * 1024 * 1024) return c.json({ error: 'File exceeds 25 MB limit' }, 413)
+
+  const bytes = new Uint8Array(await file.arrayBuffer())
+
+  let fields = {}
+  try {
+    fields = await parseApplicationFields(bytes, CHAPTERS)
+  } catch (err) {
+    console.error('parse-application: field extraction failed', err)
+  }
+
+  let headshotDataUrl: string | null = null
+  try {
+    const headshot = extractHeadshot(bytes)
+    if (headshot) {
+      headshotDataUrl = `data:${headshot.contentType};base64,${Buffer.from(headshot.bytes).toString('base64')}`
+    }
+  } catch (err) {
+    console.error('parse-application: headshot extraction failed', err)
+  }
+
+  return c.json({ fields, headshotDataUrl })
 })
 
 app.post('/candidates', async (c) => {

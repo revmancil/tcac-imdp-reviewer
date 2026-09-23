@@ -1159,6 +1159,138 @@ var MAX_LOGIN_ATTEMPTS = 5;
 var LOCKOUT_MINUTES = 15;
 var MIN_PASSWORD_LENGTH = 10;
 
+// src/lib/pdf-parse.ts
+import * as mupdf from "mupdf";
+import { createWorker } from "tesseract.js";
+function findHeadshotOnPage(page) {
+  const resources = page.getObject().get("Resources");
+  const xobjects = resources.get("XObject");
+  if (xobjects.isNull()) return null;
+  const candidates = [];
+  xobjects.forEach((val) => {
+    if (!val.isStream()) return;
+    if (val.get("Subtype").asName() !== "Image") return;
+    const width = val.get("Width").asNumber();
+    const height = val.get("Height").asNumber();
+    if (!width || !height) return;
+    const ratio = width / height;
+    if (width < 80 || height < 80 || ratio < 0.6 || ratio > 1.8) return;
+    candidates.push({ obj: val, width, height });
+  });
+  const best = candidates.sort((a, b) => b.width * b.height - a.width * a.height)[0];
+  if (!best) return null;
+  const filter = best.obj.get("Filter");
+  if (!filter.isName() || filter.asName() !== "DCTDecode") return null;
+  const raw = best.obj.readRawStream();
+  return { bytes: raw.asUint8Array(), contentType: "image/jpeg" };
+}
+function extractHeadshot(pdfBytes) {
+  const doc = mupdf.Document.openDocument(pdfBytes, "application/pdf");
+  const pageCount = Math.min(doc.countPages(), 3);
+  for (let i = 0; i < pageCount; i++) {
+    const found = findHeadshotOnPage(doc.loadPage(i));
+    if (found) return found;
+  }
+  return null;
+}
+async function renderPageToPNG(doc, pageIndex) {
+  const page = doc.loadPage(pageIndex);
+  const matrix = mupdf.Matrix.scale(2, 2);
+  const pixmap = page.toPixmap(matrix, mupdf.ColorSpace.DeviceRGB, false, true);
+  return pixmap.asPNG();
+}
+async function ocrLines(worker, png) {
+  const { data } = await worker.recognize(Buffer.from(png));
+  return data.text.split("\n").map((l) => l.trim()).filter(Boolean);
+}
+var LABEL_SETTERS = [
+  ["First Name", (f, v) => f.firstName = v],
+  ["Middle Name", (f, v) => f.middleName = v],
+  ["Last Name", (f, v) => f.lastName = v],
+  ["Email", (f, v) => f.email = v],
+  ["Mobile/Primary", (f, v) => f.phone = v],
+  ["Class", (f, v) => f.classification = /alum/i.test(v) ? "Alumni" : "Undergraduate"],
+  ["GPA", (f, v) => f.gpa = normalizeGPA(v)],
+  ["Bachelor University", (f, v) => f.school = v],
+  ["College Major", (f, v) => f.major = v.replace(/\s*\(Minor\)\s*$/i, "")],
+  ["Graduation Year", (f, v) => f.gradDate = v]
+];
+function normalizeGPA(raw) {
+  if (/^\d{3}$/.test(raw)) {
+    const asHundredths = parseInt(raw, 10);
+    if (asHundredths >= 150 && asHundredths <= 450) return (asHundredths / 100).toFixed(2);
+  }
+  return raw;
+}
+var norm = (s) => s.trim().toLowerCase();
+function parseLabelValueLines(lines, fields) {
+  const labelTexts = new Set(LABEL_SETTERS.map(([label]) => norm(label)));
+  for (let i = 0; i < lines.length; i++) {
+    const match = LABEL_SETTERS.find(([label]) => norm(lines[i]) === norm(label));
+    if (!match) continue;
+    const next = lines[i + 1];
+    if (next && !labelTexts.has(norm(next))) match[1](fields, next);
+  }
+}
+function parseAddressLines(lines, fields) {
+  const valueAfter = (label) => {
+    const i = lines.findIndex((l) => norm(l) === norm(label));
+    return i >= 0 && lines[i + 1] ? lines[i + 1] : "";
+  };
+  const street = valueAfter("Street Address");
+  const city = valueAfter("City");
+  const rawState = valueAfter("State");
+  const state = /^[A-Z]{2}$/i.test(rawState.trim()) ? rawState.trim().toUpperCase() : "";
+  const zip = valueAfter("Zip Code");
+  if (street || city || state || zip) {
+    fields.address = [street, [city, [state, zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean).join(", ");
+  }
+}
+function parseHeaderBlock(fullText, fields, chapters) {
+  const bornMatch = fullText.match(/Born in (\d{4})/i);
+  if (bornMatch) fields.dob = bornMatch[1];
+  const sponsorMatch = fullText.match(/Sponsor:\s*([^\n]+)/i);
+  if (sponsorMatch) fields.sponsorName = reverseNameToDisplay(sponsorMatch[1]);
+  const recommenderMatch = fullText.match(/Recommender:\s*([^\n]+)/i);
+  if (recommenderMatch) fields.recommenderName = reverseNameToDisplay(recommenderMatch[1]);
+  const byNameLength = Object.values(chapters).sort((a, b) => b.name.length - a.name.length);
+  for (const ch of byNameLength) {
+    if (ch.name.length < 4) continue;
+    const re = new RegExp(`\\b${ch.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    if (re.test(fullText)) {
+      fields.chapterKey = ch.key;
+      break;
+    }
+  }
+}
+function reverseNameToDisplay(raw) {
+  const clean = raw.trim().replace(/\s+/g, " ");
+  const [last, rest] = clean.split(",").map((s) => s.trim());
+  if (!last || !rest) return clean.startsWith("Bro.") ? clean : `Bro. ${clean}`;
+  return `Bro. ${rest} ${last}`;
+}
+async function parseApplicationFields(pdfBytes, chapters) {
+  const doc = mupdf.Document.openDocument(pdfBytes, "application/pdf");
+  const pageCount = Math.min(doc.countPages(), 2);
+  const langPath = process.env.TESSERACT_LANG_PATH;
+  const worker = await createWorker("eng", 1, langPath ? { langPath, cachePath: langPath, gzip: true } : void 0);
+  try {
+    const fields = {};
+    let combinedText = "";
+    for (let i = 0; i < pageCount; i++) {
+      const png = await renderPageToPNG(doc, i);
+      const lines = await ocrLines(worker, png);
+      combinedText += "\n" + lines.join("\n");
+      parseLabelValueLines(lines, fields);
+      parseAddressLines(lines, fields);
+    }
+    parseHeaderBlock(combinedText, fields, chapters);
+    return fields;
+  } finally {
+    await worker.terminate();
+  }
+}
+
 // src/index.tsx
 var app = new Hono().basePath("/api");
 app.use("*", cors());
@@ -1399,6 +1531,32 @@ app.post("/candidates/csv/commit", async (c) => {
     await logAudit(cand.id, officer.id, "csv_import", `Imported via CSV by ${officer.name}`);
   }
   return c.json({ inserted: toInsert.length });
+});
+app.post("/candidates/parse-application", async (c) => {
+  const officer = await currentOfficer(c);
+  const denied = requireOfficer(c, officer);
+  if (denied) return denied;
+  const form = await c.req.formData();
+  const file = form.get("file");
+  if (!(file instanceof File)) return c.json({ error: "No file provided" }, 400);
+  if (file.size > 25 * 1024 * 1024) return c.json({ error: "File exceeds 25 MB limit" }, 413);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let fields = {};
+  try {
+    fields = await parseApplicationFields(bytes, CHAPTERS);
+  } catch (err) {
+    console.error("parse-application: field extraction failed", err);
+  }
+  let headshotDataUrl = null;
+  try {
+    const headshot = extractHeadshot(bytes);
+    if (headshot) {
+      headshotDataUrl = `data:${headshot.contentType};base64,${Buffer.from(headshot.bytes).toString("base64")}`;
+    }
+  } catch (err) {
+    console.error("parse-application: headshot extraction failed", err);
+  }
+  return c.json({ fields, headshotDataUrl });
 });
 app.post("/candidates", async (c) => {
   const officer = await currentOfficer(c);
