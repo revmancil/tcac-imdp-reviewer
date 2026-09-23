@@ -1,12 +1,28 @@
 // Thin fetch wrapper for the TCAC Intake Review API.
 import type { AdminOfficerRow, Candidate, OfficerPublic, ReferenceData } from '../shared/types'
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    credentials: 'include',
-    headers: init?.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : undefined,
-    ...init,
-  })
+async function req<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
+  const { timeoutMs, ...rest } = init || {}
+  const controller = timeoutMs ? new AbortController() : undefined
+  const timer = timeoutMs ? setTimeout(() => controller!.abort(), timeoutMs) : undefined
+  let res: Response
+  try {
+    res = await fetch(path, {
+      credentials: 'include',
+      headers: rest.body && !(rest.body instanceof FormData) ? { 'Content-Type': 'application/json' } : undefined,
+      signal: controller?.signal,
+      ...rest,
+    })
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      const timeoutErr: any = new Error('This is taking longer than expected — the request timed out. Please try again.')
+      timeoutErr.status = 0
+      throw timeoutErr
+    }
+    throw err
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
   const isJson = res.headers.get('content-type')?.includes('application/json')
   const data = isJson ? await res.json() : await res.text()
   if (!res.ok) {
@@ -49,6 +65,9 @@ export const api = {
   parseApplication: (file: File) => {
     const form = new FormData()
     form.append('file', file)
-    return req<{ fields: Record<string, string>; headshotDataUrl: string | null }>('/api/candidates/parse-application', { method: 'POST', body: form })
+    // Server-side maxDuration is 60s -- give it a bit longer than that so a
+    // clean server-side timeout error wins the race, but guarantee this
+    // never hangs the UI indefinitely if the connection doesn't close cleanly.
+    return req<{ fields: Record<string, string>; headshotDataUrl: string | null }>('/api/candidates/parse-application', { method: 'POST', body: form, timeoutMs: 90_000 })
   },
 }
