@@ -11,6 +11,7 @@
     "build": "npm run build:client && npm run build:api",
     "typecheck": "tsc --noEmit",
     "db:migrate": "node scripts/migrate.mjs",
+    "db:backfill-school": "node --experimental-strip-types scripts/backfill-school.mjs",
     "deploy": "npm run build && vercel deploy --prod"
   },
   "dependencies": {
