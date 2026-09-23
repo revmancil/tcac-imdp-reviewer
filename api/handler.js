@@ -1297,6 +1297,101 @@ async function parseApplicationFields(pdfBytes, chapters) {
   }
 }
 
+// src/lib/redact.ts
+import * as mupdf2 from "mupdf";
+import { createWorker as createWorker2 } from "tesseract.js";
+var STRICT_SSN = /\b\d{3}-\d{2}-\d{4}\b/g;
+var LOOSE_SSN = /\b(\d{3}[\s-]\d{2}[\s-]\d{4}|\d{9})\b/g;
+var SSN_LABEL = /\bSSN\b|\bSocial Security\b/i;
+function findSensitiveSpans(lineText) {
+  const matches = [];
+  for (const m of lineText.matchAll(STRICT_SSN)) {
+    matches.push({ start: m.index, end: m.index + m[0].length });
+  }
+  if (SSN_LABEL.test(lineText)) {
+    for (const m of lineText.matchAll(LOOSE_SSN)) {
+      const start = m.index;
+      const end = start + m[0].length;
+      if (!matches.some((x) => start < x.end && end > x.start)) matches.push({ start, end });
+    }
+  }
+  return matches;
+}
+function unionBoxForSpan(words, span) {
+  let cursor = 0;
+  let box = null;
+  for (const w of words) {
+    const start = cursor;
+    const end = start + w.text.length;
+    cursor = end + 1;
+    if (start < span.end && end > span.start) {
+      box = box ? { text: "", x0: Math.min(box.x0, w.x0), y0: Math.min(box.y0, w.y0), x1: Math.max(box.x1, w.x1), y1: Math.max(box.y1, w.y1) } : { ...w };
+    }
+  }
+  return box;
+}
+var RENDER_SCALE = 2;
+var PAD_PT = 2;
+async function redactPage(doc, pageIndex, worker) {
+  const page = doc.loadPage(pageIndex);
+  const bounds = page.getBounds();
+  const pageHeight = bounds[3] - bounds[1];
+  const matrix = mupdf2.Matrix.scale(RENDER_SCALE, RENDER_SCALE);
+  const pixmap = page.toPixmap(matrix, mupdf2.ColorSpace.DeviceRGB, false, true);
+  const png = pixmap.asPNG();
+  const { data } = await worker.recognize(Buffer.from(png), {}, { blocks: true });
+  let found = false;
+  for (const block of data.blocks || []) {
+    for (const para of block.paragraphs || []) {
+      for (const line of para.lines || []) {
+        const words = (line.words || []).map((w) => ({ text: w.text, x0: w.bbox.x0, y0: w.bbox.y0, x1: w.bbox.x1, y1: w.bbox.y1 }));
+        if (!words.length) continue;
+        const lineText = words.map((w) => w.text).join(" ");
+        const spans = findSensitiveSpans(lineText);
+        for (const span of spans) {
+          const box = unionBoxForSpan(words, span);
+          if (!box) continue;
+          found = true;
+          const rect = [
+            box.x0 / RENDER_SCALE - PAD_PT,
+            pageHeight - box.y1 / RENDER_SCALE - PAD_PT,
+            box.x1 / RENDER_SCALE + PAD_PT,
+            pageHeight - box.y0 / RENDER_SCALE + PAD_PT
+          ];
+          const annot = page.createAnnotation("Redact");
+          annot.setRect(rect);
+          const quadPoints = doc.newArray();
+          for (const v of [rect[0], rect[3], rect[2], rect[3], rect[0], rect[1], rect[2], rect[1]]) {
+            quadPoints.push(v);
+          }
+          annot.getObject().put("QuadPoints", quadPoints);
+          annot.update();
+        }
+      }
+    }
+  }
+  if (found) {
+    page.applyRedactions(true, mupdf2.PDFPage.REDACT_IMAGE_PIXELS, mupdf2.PDFPage.REDACT_LINE_ART_REMOVE_IF_TOUCHED, mupdf2.PDFPage.REDACT_TEXT_REMOVE);
+  }
+  return found;
+}
+async function redactSensitiveInfo(pdfBytes) {
+  const doc = mupdf2.Document.openDocument(pdfBytes, "application/pdf");
+  const pageCount = doc.countPages();
+  const langPath = process.env.TESSERACT_LANG_PATH;
+  const worker = await createWorker2("eng", 1, langPath ? { langPath, cachePath: langPath, gzip: true } : void 0);
+  let redactedCount = 0;
+  try {
+    for (let i = 0; i < pageCount; i++) {
+      if (await redactPage(doc, i, worker)) redactedCount++;
+    }
+  } finally {
+    await worker.terminate();
+  }
+  const buffer = doc.saveToBuffer("");
+  return { bytes: buffer.asUint8Array(), redactedCount };
+}
+
 // src/index.tsx
 var app = new Hono().basePath("/api");
 app.use("*", cors());
@@ -1638,8 +1733,20 @@ app.post("/candidates/:id/docs/:docKey", async (c) => {
   const file = form.get("file");
   if (!(file instanceof File)) return c.json({ error: "No file provided" }, 400);
   if (file.size > 25 * 1024 * 1024) return c.json({ error: "File exceeds 25 MB limit" }, 413);
+  let bytes = await file.arrayBuffer();
+  let contentType = file.type || "application/octet-stream";
+  let redactedCount = 0;
+  if (contentType === "application/pdf") {
+    try {
+      const result = await redactSensitiveInfo(new Uint8Array(bytes));
+      bytes = result.bytes.buffer.slice(result.bytes.byteOffset, result.bytes.byteOffset + result.bytes.byteLength);
+      redactedCount = result.redactedCount;
+    } catch (err) {
+      console.error("SSN redaction failed, storing original file", err);
+    }
+  }
   const key = `candidates/${id}/${docKey}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9_.-]/g, "_")}`;
-  await putFile(key, await file.arrayBuffer(), file.type || "application/octet-stream");
+  await putFile(key, bytes, contentType);
   const wasReplaced = !!candidate.docs[docKey]?.file;
   const doc = {
     present: true,
@@ -1649,7 +1756,12 @@ app.post("/candidates/:id/docs/:docKey", async (c) => {
     uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
   const updated = await updateCandidateDoc(id, docKey, doc);
-  await logAudit(id, officer.id, wasReplaced ? "doc_replace" : "doc_upload", `${docKey} by ${officer.name}`);
+  await logAudit(
+    id,
+    officer.id,
+    wasReplaced ? "doc_replace" : "doc_upload",
+    redactedCount > 0 ? `${docKey} by ${officer.name} \xB7 ${redactedCount} page(s) redacted for sensitive info` : `${docKey} by ${officer.name}`
+  );
   return c.json({ candidate: updated });
 });
 app.get("/files/*", async (c) => {

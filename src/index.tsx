@@ -37,6 +37,7 @@ import { makeCandidate, parseCandidateCSV, buildCSVTemplate } from './lib/candid
 import { hashPassword, verifyPassword, randomTempPassword } from './lib/password.js'
 import { OFFICER_EMAILS, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth.js'
 import { extractHeadshot, parseApplicationFields } from './lib/pdf-parse.js'
+import { redactSensitiveInfo } from './lib/redact.js'
 
 const app = new Hono().basePath('/api')
 
@@ -473,8 +474,24 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
   if (!(file instanceof File)) return c.json({ error: 'No file provided' }, 400)
   if (file.size > 25 * 1024 * 1024) return c.json({ error: 'File exceeds 25 MB limit' }, 413)
 
+  let bytes = await file.arrayBuffer()
+  let contentType = file.type || 'application/octet-stream'
+  let redactedCount = 0
+  if (contentType === 'application/pdf') {
+    try {
+      const result = await redactSensitiveInfo(new Uint8Array(bytes))
+      bytes = result.bytes.buffer.slice(result.bytes.byteOffset, result.bytes.byteOffset + result.bytes.byteLength) as ArrayBuffer
+      redactedCount = result.redactedCount
+    } catch (err) {
+      // If redaction fails for any reason, fall back to storing the
+      // original upload rather than blocking the officer's workflow --
+      // an unredacted document beats losing the upload entirely.
+      console.error('SSN redaction failed, storing original file', err)
+    }
+  }
+
   const key = `candidates/${id}/${docKey}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`
-  await putFile(key, await file.arrayBuffer(), file.type || 'application/octet-stream')
+  await putFile(key, bytes, contentType)
 
   const wasReplaced = !!candidate.docs[docKey]?.file
   const doc = {
@@ -485,7 +502,14 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
     uploadedAt: new Date().toISOString(),
   }
   const updated = await updateCandidateDoc(id, docKey, doc)
-  await logAudit(id, officer!.id, wasReplaced ? 'doc_replace' : 'doc_upload', `${docKey} by ${officer!.name}`)
+  await logAudit(
+    id,
+    officer!.id,
+    wasReplaced ? 'doc_replace' : 'doc_upload',
+    redactedCount > 0
+      ? `${docKey} by ${officer!.name} · ${redactedCount} page(s) redacted for sensitive info`
+      : `${docKey} by ${officer!.name}`,
+  )
   return c.json({ candidate: updated })
 })
 
