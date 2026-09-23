@@ -35,9 +35,9 @@ html, body {
   padding: 0;
   background: #F0EBDD;
   color: var(--text);
-  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
-  font-size: 15px;
-  line-height: 1.5;
+  font-family: 'Inter', 'EB Garamond', Georgia, sans-serif;
+  font-size: 20px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -61,8 +61,8 @@ input, select, textarea { font-family: inherit; }
    ========================================================================== */
 
 .v-classic {
-  font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: 15px;
+  font-family: 'Inter', 'EB Garamond', Georgia, sans-serif;
+  font-size: 20px;
 }
 .v-classic h1, .v-classic h2, .v-classic h3 {
   font-family: 'Playfair Display', 'Cormorant Garamond', serif;
@@ -73,7 +73,7 @@ input, select, textarea { font-family: inherit; }
 
 .v-modern {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 14px;
+  font-size: 19px;
   color: #22201B;
 }
 .v-modern h1, .v-modern h2, .v-modern h3 {
@@ -117,8 +117,8 @@ input, select, textarea { font-family: inherit; }
 .banner-left { display: flex; gap: 20px; align-items: center; }
 
 .eyebrow {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 11px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--gold);
@@ -126,20 +126,20 @@ input, select, textarea { font-family: inherit; }
 }
 .v-classic .banner-title {
   font-family: 'Playfair Display', serif;
-  font-size: 34px;
+  font-size: 42px;
   font-weight: 700;
   color: var(--cream);
   margin: 0 0 4px;
   letter-spacing: -0.01em;
 }
 .banner-sub {
-  font-size: 15px;
+  font-size: 20px;
   color: #C9BE9C;
   font-style: italic;
 }
 .banner-right { text-align: right; }
 .meta-label {
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold);
@@ -147,12 +147,12 @@ input, select, textarea { font-family: inherit; }
 }
 .meta-value {
   font-family: 'Playfair Display', serif;
-  font-size: 17px;
+  font-size: 23px;
   color: var(--cream);
   font-weight: 600;
 }
 .meta-role {
-  font-size: 12px;
+  font-size: 17px;
   color: #C9BE9C;
   font-style: italic;
   margin-top: 2px;
@@ -168,7 +168,7 @@ input, select, textarea { font-family: inherit; }
   font-family: 'Playfair Display', serif;
   font-style: italic;
   color: var(--gold);
-  font-size: 15px;
+  font-size: 20px;
   letter-spacing: 0.02em;
 }
 
@@ -189,14 +189,14 @@ input, select, textarea { font-family: inherit; }
 .banner-modern .banner-left { gap: 14px; align-items: center; }
 .banner-title-modern {
   font-family: 'Fraunces', serif;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 500;
   color: #17140E;
   letter-spacing: -0.02em;
 }
 .banner-sub-modern {
   font-family: 'Inter', sans-serif;
-  font-size: 12px;
+  font-size: 17px;
   color: #6B6555;
   margin-top: 2px;
 }
@@ -215,7 +215,7 @@ input, select, textarea { font-family: inherit; }
   background: #FBF8EE;
   border-radius: 999px;
   color: #4A463D;
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 500;
 }
 .chip-btn:hover { background: #F5EFDD; }
@@ -229,7 +229,7 @@ input, select, textarea { font-family: inherit; }
   background: var(--gold);
   color: #fff;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 15px;
   font-weight: 700;
 }
 .user-chip {
@@ -241,8 +241,8 @@ input, select, textarea { font-family: inherit; }
   border-radius: 999px;
   background: #FBF8EE;
 }
-.user-chip-name { font-size: 12px; font-weight: 600; color: #22201B; }
-.user-chip-role { font-size: 10px; color: #8A836F; }
+.user-chip-name { font-size: 17px; font-weight: 600; color: #22201B; }
+.user-chip-role { font-size: 15px; color: #8A836F; }
 
 /* ==========================================================================
    Stat row / cards
@@ -257,9 +257,9 @@ input, select, textarea { font-family: inherit; }
 .missing .stat-row { grid-template-columns: repeat(4, 1fr); }
 .stat-row.stat-row-7 { grid-template-columns: repeat(7, 1fr); gap: 8px; }
 .stat-row.stat-row-7 .stat-card { padding: 12px 12px; }
-.stat-row.stat-row-7 .stat-value { font-size: 24px; }
-.stat-row.stat-row-7 .stat-label { font-size: 9px; letter-spacing: 0.14em; }
-.v-modern .stat-row.stat-row-7 .stat-label { font-size: 10px; letter-spacing: 0.01em; }
+.stat-row.stat-row-7 .stat-value { font-size: 31px; }
+.stat-row.stat-row-7 .stat-label { font-size: 13px; letter-spacing: 0.14em; }
+.v-modern .stat-row.stat-row-7 .stat-label { font-size: 15px; letter-spacing: 0.01em; }
 
 .v-classic .stat-card {
   background: var(--paper);
@@ -277,14 +277,14 @@ input, select, textarea { font-family: inherit; }
 }
 .v-classic .stat-value {
   font-family: 'Playfair Display', serif;
-  font-size: 30px;
+  font-size: 38px;
   font-weight: 700;
   color: var(--ink);
   line-height: 1;
   margin-bottom: 6px;
 }
 .v-classic .stat-label {
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--text-2);
@@ -305,7 +305,7 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .stat-value {
   font-family: 'Fraunces', serif;
-  font-size: 28px;
+  font-size: 35px;
   font-weight: 500;
   color: #17140E;
   line-height: 1;
@@ -313,7 +313,7 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .stat-label {
   font-family: 'Inter', sans-serif;
-  font-size: 11px;
+  font-size: 16px;
   color: #6B6555;
   font-weight: 500;
 }
@@ -360,7 +360,7 @@ input, select, textarea { font-family: inherit; }
   padding: 10px 0;
   flex: 1;
   background: transparent;
-  font-size: 14px;
+  font-size: 19px;
   color: var(--text);
 }
 .filter-group {
@@ -369,7 +369,7 @@ input, select, textarea { font-family: inherit; }
   gap: 8px;
 }
 .filter-label {
-  font-size: 11px;
+  font-size: 16px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-2);
@@ -378,7 +378,7 @@ input, select, textarea { font-family: inherit; }
 .v-modern .filter-label {
   text-transform: none;
   letter-spacing: 0;
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 500;
 }
 .filter-select {
@@ -386,7 +386,7 @@ input, select, textarea { font-family: inherit; }
   background: #FFF;
   border: 1px solid var(--line);
   border-radius: 2px;
-  font-size: 13px;
+  font-size: 18px;
   color: var(--text);
   cursor: pointer;
 }
@@ -397,7 +397,7 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   gap: 8px;
   padding: 9px 16px;
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 600;
   border: 1px solid transparent;
   border-radius: 2px;
@@ -417,7 +417,7 @@ input, select, textarea { font-family: inherit; }
   border-color: var(--line);
 }
 .btn-secondary:hover { background: var(--paper); }
-.btn-primary.sm, .btn-secondary.sm { padding: 6px 10px; font-size: 12px; }
+.btn-primary.sm, .btn-secondary.sm { padding: 6px 10px; font-size: 17px; }
 .btn-primary.full { width: 100%; justify-content: center; margin-top: 8px; }
 
 .badge-count {
@@ -431,7 +431,7 @@ input, select, textarea { font-family: inherit; }
   color: var(--warn);
   border: 1px solid var(--warn);
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -450,24 +450,24 @@ input, select, textarea { font-family: inherit; }
 .roster-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 18px;
 }
 .roster-table thead th {
   text-align: left;
   padding: 12px 14px;
   background: var(--paper);
   color: var(--text-2);
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-weight: 700;
   border-bottom: 2px solid var(--gold);
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Inter', sans-serif;
 }
 .v-modern .roster-table thead th {
   font-family: 'Inter', sans-serif;
   background: #FBF9F0;
-  font-size: 11px;
+  font-size: 16px;
   letter-spacing: 0.02em;
   text-transform: none;
   color: #6B6555;
@@ -490,15 +490,15 @@ input, select, textarea { font-family: inherit; }
 }
 .cand-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 19px;
   color: var(--ink);
 }
 .v-classic .cand-name {
   font-family: 'Playfair Display', serif;
-  font-size: 15px;
+  font-size: 20px;
 }
 .cand-id {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-3);
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.02em;
@@ -509,25 +509,25 @@ input, select, textarea { font-family: inherit; }
   color: var(--text);
 }
 .cand-major {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-3);
   margin-top: 2px;
 }
 
 .gpa {
   font-family: 'JetBrains Mono', 'Playfair Display', monospace;
-  font-size: 14px;
+  font-size: 19px;
   font-weight: 600;
   color: var(--ink);
 }
-.v-classic .gpa { font-family: 'Playfair Display', serif; font-size: 16px; }
+.v-classic .gpa { font-family: 'Playfair Display', serif; font-size: 21px; }
 .gpa-fail { color: var(--danger); }
 
 .check-ok {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 17px;
   color: var(--ok);
   font-weight: 500;
 }
@@ -535,14 +535,14 @@ input, select, textarea { font-family: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 17px;
   color: var(--warn);
   font-weight: 600;
 }
 
 .submitted {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
 }
 
@@ -555,7 +555,7 @@ input, select, textarea { font-family: inherit; }
 
 .roster-footer {
   margin-top: 12px;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-3);
   text-align: center;
   font-style: italic;
@@ -571,7 +571,7 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
 }
 .link-btn {
@@ -582,13 +582,13 @@ input, select, textarea { font-family: inherit; }
   border: none;
   padding: 4px 8px;
   color: var(--gold-deep);
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .link-btn:hover { color: var(--ink); }
-.v-modern .link-btn { text-transform: none; letter-spacing: 0; font-size: 13px; }
+.v-modern .link-btn { text-transform: none; letter-spacing: 0; font-size: 18px; }
 .crumb-sep { color: var(--text-3); }
 .crumb-cur {
   font-family: 'JetBrains Mono', monospace;
@@ -624,21 +624,21 @@ input, select, textarea { font-family: inherit; }
 }
 .detail-id {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--gold-deep);
   letter-spacing: 0.06em;
   margin-bottom: 4px;
 }
 .detail-name {
   margin: 0 0 4px;
-  font-size: 26px;
+  font-size: 33px;
   font-weight: 700;
   color: var(--ink);
 }
-.v-classic .detail-name { font-family: 'Playfair Display', serif; font-size: 28px; }
-.v-modern .detail-name { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 500; }
+.v-classic .detail-name { font-family: 'Playfair Display', serif; font-size: 35px; }
+.v-modern .detail-name { font-family: 'Fraunces', serif; font-size: 31px; font-weight: 500; }
 .detail-meta {
-  font-size: 13px;
+  font-size: 18px;
   color: var(--text-2);
   display: flex;
   align-items: center;
@@ -668,7 +668,7 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .checkstrip { border-radius: 10px; background: #FBF9F0; border-color: #E8E4D8; }
 .checkstrip-title {
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--text-2);
@@ -677,7 +677,7 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .checkstrip-title {
   font-family: 'Inter', sans-serif;
-  font-size: 11px;
+  font-size: 16px;
   letter-spacing: 0.02em;
   text-transform: none;
   color: #6B6555;
@@ -705,7 +705,7 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   gap: 6px;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 17px;
   color: var(--ink);
   margin-bottom: 4px;
 }
@@ -713,7 +713,7 @@ input, select, textarea { font-family: inherit; }
 .check-item-flag .check-item-icon { color: var(--danger); }
 .check-item-pending .check-item-icon { color: var(--text-3); }
 .check-item-value {
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
 }
 .check-item-flag .check-item-value { color: var(--danger); font-weight: 500; }
@@ -757,7 +757,7 @@ input, select, textarea { font-family: inherit; }
   border-bottom: none;
   border-radius: 2px 2px 0 0;
   color: var(--text-2);
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 600;
   cursor: pointer;
   margin-bottom: -1px;
@@ -795,7 +795,7 @@ input, select, textarea { font-family: inherit; }
   box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08);
   padding: 40px 44px;
   position: relative;
-  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-family: 'Inter', 'EB Garamond', Georgia, sans-serif;
   color: #2A2620;
   line-height: 1.5;
 }
@@ -808,7 +808,7 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--warn);
   border-radius: 2px;
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--warn);
   font-weight: 600;
   display: flex;
@@ -826,7 +826,7 @@ input, select, textarea { font-family: inherit; }
   width: 100%;
   max-width: 640px;
   padding: 0 4px;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-2);
   font-family: 'Inter', sans-serif;
 }
@@ -840,7 +840,7 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--line);
   border-radius: 2px;
   color: var(--text-2);
-  font-size: 11px;
+  font-size: 16px;
 }
 .v-modern .tool-btn { border-radius: 6px; }
 
@@ -860,9 +860,9 @@ input, select, textarea { font-family: inherit; }
   text-align: center;
 }
 .doc-missing-icon { color: var(--warn); opacity: 0.6; }
-.doc-missing-title { font-size: 18px; font-weight: 600; color: var(--ink); }
+.doc-missing-title { font-size: 24px; font-weight: 600; color: var(--ink); }
 .v-classic .doc-missing-title { font-family: 'Playfair Display', serif; }
-.doc-missing-sub { font-size: 13px; color: var(--text-2); max-width: 400px; margin-bottom: 12px; }
+.doc-missing-sub { font-size: 18px; color: var(--text-2); max-width: 400px; margin-bottom: 12px; }
 
 /* ==========================================================================
    Paper / mock document rendering
@@ -884,27 +884,27 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 20px;
+  font-family: 'Inter', sans-serif;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: 0.04em;
   clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
 }
 .paper-title {
   font-family: 'Playfair Display', serif;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--ink);
   letter-spacing: 0.02em;
 }
 .paper-sub {
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
   font-style: italic;
   margin-top: 2px;
 }
 .paper-sub-2 {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-3);
   margin-top: 2px;
   font-family: 'JetBrains Mono', monospace;
@@ -924,7 +924,7 @@ input, select, textarea { font-family: inherit; }
 }
 .paper-section {
   font-family: 'Playfair Display', serif;
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.2em;
   color: var(--ink);
@@ -942,15 +942,15 @@ input, select, textarea { font-family: inherit; }
 .pf { }
 .pf-full { grid-column: 1 / -1; }
 .pf-label {
-  font-size: 10px;
+  font-size: 15px;
   color: var(--text-3);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Inter', sans-serif;
   margin-bottom: 2px;
 }
 .pf-value {
-  font-size: 13px;
+  font-size: 18px;
   color: var(--ink);
   border-bottom: 1px solid var(--line);
   padding-bottom: 3px;
@@ -958,7 +958,7 @@ input, select, textarea { font-family: inherit; }
 }
 
 .paper-attest {
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
   line-height: 1.6;
   padding: 12px 14px;
@@ -967,7 +967,7 @@ input, select, textarea { font-family: inherit; }
   margin: 16px 0;
   font-style: italic;
 }
-.paper-attest.small { font-size: 10px; padding: 8px 12px; }
+.paper-attest.small { font-size: 15px; padding: 8px 12px; }
 
 .paper-sig-row {
   display: grid;
@@ -985,21 +985,21 @@ input, select, textarea { font-family: inherit; }
 }
 .sig-mark {
   font-family: 'Cedarville Cursive', 'Dancing Script', cursive;
-  font-size: 20px;
+  font-size: 26px;
   color: var(--ink);
 }
 .sig-mark.date {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: 18px;
 }
 .sig-mark.missing {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--danger);
   font-style: italic;
 }
 .sig-caption {
-  font-size: 10px;
+  font-size: 15px;
   color: var(--text-2);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1016,7 +1016,7 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   justify-content: center;
   color: var(--gold-deep);
-  font-size: 10px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.14em;
   transform: rotate(-8deg);
@@ -1026,14 +1026,14 @@ input, select, textarea { font-family: inherit; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px 20px;
-  font-size: 12px;
+  font-size: 17px;
   margin-bottom: 12px;
 }
 .transcript-meta span { color: var(--text-3); }
 .transcript-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 17px;
   margin-bottom: 12px;
 }
 .transcript-table th {
@@ -1041,7 +1041,7 @@ input, select, textarea { font-family: inherit; }
   padding: 6px 8px;
   background: #F0E6C8;
   font-family: 'Playfair Display', serif;
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   border-bottom: 1.5px solid var(--ink);
@@ -1050,7 +1050,7 @@ input, select, textarea { font-family: inherit; }
   padding: 5px 8px;
   border-bottom: 1px solid var(--line-soft);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 16px;
 }
 .transcript-gpa {
   display: grid;
@@ -1059,8 +1059,8 @@ input, select, textarea { font-family: inherit; }
   padding: 10px 12px;
   background: var(--ink);
   color: var(--gold);
-  font-size: 12px;
-  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
+  font-family: 'Inter', sans-serif;
   border-radius: 2px;
   margin-bottom: 8px;
 }
@@ -1089,13 +1089,13 @@ input, select, textarea { font-family: inherit; }
 }
 .voter-state {
   font-family: 'Playfair Display', serif;
-  font-size: 14px;
+  font-size: 19px;
   font-weight: 700;
   color: var(--ink);
   letter-spacing: 0.06em;
 }
 .voter-sub {
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink);
@@ -1103,7 +1103,7 @@ input, select, textarea { font-family: inherit; }
   margin-top: 2px;
 }
 .voter-seal {
-  font-size: 24px;
+  font-size: 31px;
   color: var(--gold-deep);
 }
 .voter-body {
@@ -1124,15 +1124,15 @@ input, select, textarea { font-family: inherit; }
   justify-content: space-between;
   padding: 6px 0;
   border-bottom: 1px dotted var(--line);
-  font-size: 12px;
+  font-size: 17px;
 }
 .assess-row span { color: var(--text-2); }
-.assess-row b { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.assess-row b { font-family: 'JetBrains Mono', monospace; font-size: 16px; }
 
 /* Resume */
 .resume-name {
   font-family: 'Playfair Display', serif;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-align: center;
@@ -1140,7 +1140,7 @@ input, select, textarea { font-family: inherit; }
 }
 .resume-contact {
   text-align: center;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-2);
   margin-top: 4px;
   font-family: 'JetBrains Mono', monospace;
@@ -1152,7 +1152,7 @@ input, select, textarea { font-family: inherit; }
 }
 .resume-section {
   font-family: 'Playfair Display', serif;
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.2em;
   color: var(--ink);
@@ -1160,19 +1160,19 @@ input, select, textarea { font-family: inherit; }
   padding-bottom: 2px;
   border-bottom: 1px solid var(--gold);
 }
-.resume-item { margin-bottom: 8px; font-size: 12px; }
+.resume-item { margin-bottom: 8px; font-size: 17px; }
 .resume-item-head {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 18px;
 }
 .resume-item-head span {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-3);
 }
 .resume-bul {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-2);
   padding-left: 10px;
   line-height: 1.5;
@@ -1199,19 +1199,19 @@ input, select, textarea { font-family: inherit; }
 }
 .letter-title {
   font-family: 'Playfair Display', serif;
-  font-size: 14px;
+  font-size: 19px;
   font-weight: 700;
   color: var(--ink);
 }
 .letter-missing .letter-title { color: var(--warn); }
 .letter-sub {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-3);
   font-style: italic;
   margin-top: 2px;
 }
 .letter-body {
-  font-size: 12px;
+  font-size: 17px;
   line-height: 1.6;
   color: var(--text);
   margin-top: 8px;
@@ -1221,7 +1221,7 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   justify-content: space-between;
   margin-top: 8px;
-  font-size: 10px;
+  font-size: 15px;
   color: var(--text-3);
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.06em;
@@ -1243,7 +1243,7 @@ input, select, textarea { font-family: inherit; }
   font-family: 'Playfair Display', serif;
   font-weight: 700;
   letter-spacing: 0.14em;
-  font-size: 12px;
+  font-size: 17px;
   border-radius: 2px;
 }
 
@@ -1274,8 +1274,8 @@ input, select, textarea { font-family: inherit; }
   color: var(--gold);
   letter-spacing: 0.04em;
 }
-.hs-caption { font-size: 12px; font-style: italic; color: var(--cream); }
-.hs-meta { font-size: 10px; color: #8A7A50; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.06em; }
+.hs-caption { font-size: 17px; font-style: italic; color: var(--cream); }
+.hs-meta { font-size: 15px; color: #8A7A50; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.06em; }
 .headshot-photo {
   display: block;
   width: 100%;
@@ -1284,10 +1284,10 @@ input, select, textarea { font-family: inherit; }
 }
 
 /* Statement */
-.statement { font-size: 13px; line-height: 1.7; }
+.statement { font-size: 18px; line-height: 1.7; }
 .statement-head {
   font-family: 'Playfair Display', serif;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-align: center;
@@ -1295,7 +1295,7 @@ input, select, textarea { font-family: inherit; }
 }
 .statement-sub {
   text-align: center;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-3);
   font-family: 'JetBrains Mono', monospace;
   margin-top: 2px;
@@ -1305,7 +1305,7 @@ input, select, textarea { font-family: inherit; }
 .statement-sign {
   text-align: right;
   font-family: 'Cedarville Cursive', 'Dancing Script', cursive;
-  font-size: 20px;
+  font-size: 26px;
   color: var(--ink);
   margin-top: 20px;
 }
@@ -1329,7 +1329,7 @@ input, select, textarea { font-family: inherit; }
 .v-modern .checklist-section { border-radius: 12px; border-color: #E8E4D8; }
 
 .section-title {
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold-deep);
@@ -1341,7 +1341,7 @@ input, select, textarea { font-family: inherit; }
   font-family: 'Inter', sans-serif;
   letter-spacing: 0.02em;
   text-transform: none;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--gold-deep);
   font-weight: 600;
 }
@@ -1367,13 +1367,13 @@ input, select, textarea { font-family: inherit; }
 .checkrow-missing { }
 .checkrow-main { flex: 1; }
 .checkrow-label {
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--ink);
 }
-.v-classic .checkrow-label { font-family: 'Playfair Display', serif; font-size: 13px; }
+.v-classic .checkrow-label { font-family: 'Playfair Display', serif; font-size: 18px; }
 .checkrow-note {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-2);
   margin-top: 2px;
   font-style: italic;
@@ -1384,7 +1384,7 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   align-items: flex-start;
   gap: 4px;
-  font-size: 10px;
+  font-size: 15px;
   color: var(--gold-deep);
   margin-top: 3px;
   line-height: 1.3;
@@ -1397,12 +1397,12 @@ input, select, textarea { font-family: inherit; }
   border-left: 2px solid var(--gold);
   padding: 8px 10px;
   margin-bottom: 8px;
-  font-size: 12px;
+  font-size: 17px;
 }
 .note-head {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 15px;
   margin-bottom: 4px;
 }
 .note-author { font-weight: 700; color: var(--ink); font-family: 'Playfair Display', serif; letter-spacing: 0.04em; }
@@ -1414,7 +1414,7 @@ input, select, textarea { font-family: inherit; }
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 2px;
-  font-size: 12px;
+  font-size: 17px;
   min-height: 60px;
   resize: vertical;
   background: var(--paper);
@@ -1441,7 +1441,7 @@ input, select, textarea { font-family: inherit; }
 }
 .activity-line {
   position: relative;
-  font-size: 11px;
+  font-size: 16px;
 }
 .activity-dot {
   position: absolute;
@@ -1456,13 +1456,13 @@ input, select, textarea { font-family: inherit; }
 .activity-label {
   color: var(--ink);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 17px;
 }
 .v-classic .activity-label { font-family: 'Playfair Display', serif; }
 .activity-meta {
   color: var(--text-3);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.04em;
 }
 
@@ -1481,15 +1481,15 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .missing-hero { border-bottom: 1px solid #E4DFCF; }
 .missing-title {
-  font-size: 32px;
+  font-size: 40px;
   font-weight: 700;
   color: var(--ink);
   margin: 4px 0;
 }
 .v-classic .missing-title { font-family: 'Playfair Display', serif; }
-.v-modern .missing-title { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 500; }
+.v-modern .missing-title { font-family: 'Fraunces', serif; font-size: 35px; font-weight: 500; }
 .missing-sub {
-  font-size: 14px;
+  font-size: 19px;
   color: var(--text-2);
   max-width: 640px;
   font-style: italic;
@@ -1522,14 +1522,14 @@ input, select, textarea { font-family: inherit; }
 .v-modern .group-head { background: #FBF9F0; color: var(--ink); border-bottom: 1px solid #E4DFCF; }
 .group-title {
   font-family: 'Playfair Display', serif;
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--gold-light);
 }
 .v-modern .group-title { color: var(--ink); font-family: 'Fraunces', serif; font-weight: 500; letter-spacing: -0.01em; }
 .group-count {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--cream);
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.06em;
@@ -1544,28 +1544,28 @@ input, select, textarea { font-family: inherit; }
   gap: 12px;
   padding: 10px 18px;
   border-bottom: 1px solid var(--line-soft);
-  font-size: 13px;
+  font-size: 18px;
 }
 .group-row:last-child { border-bottom: none; }
 .group-row:hover { background: var(--cream-3); }
 .group-check { accent-color: var(--gold-deep); }
 .group-cand-name { font-weight: 600; color: var(--ink); }
 .v-classic .group-cand-name { font-family: 'Playfair Display', serif; }
-.group-cand-id { font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+.group-cand-id { font-size: 16px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
 .group-state {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 2px;
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-weight: 700;
   text-align: center;
 }
-.v-modern .group-state { border-radius: 999px; letter-spacing: 0.02em; text-transform: none; font-size: 11px; }
+.v-modern .group-state { border-radius: 999px; letter-spacing: 0.02em; text-transform: none; font-size: 16px; }
 .group-state-missing { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
 .group-state-flagged { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
-.group-note { font-size: 12px; color: var(--text-2); font-style: italic; }
+.group-note { font-size: 17px; color: var(--text-2); font-style: italic; }
 .group-open {
   display: inline-flex;
   align-items: center;
@@ -1575,7 +1575,7 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--line);
   border-radius: 2px;
   color: var(--text);
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.06em;
 }
@@ -1606,7 +1606,7 @@ input, select, textarea { font-family: inherit; }
   border-bottom: 1px dotted var(--line);
 }
 .workflow-eyebrow {
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold-deep);
@@ -1614,29 +1614,29 @@ input, select, textarea { font-family: inherit; }
   font-family: 'Playfair Display', serif;
   margin-bottom: 4px;
 }
-.v-modern .workflow-eyebrow { font-family: 'Inter', sans-serif; letter-spacing: 0.04em; font-size: 11px; }
+.v-modern .workflow-eyebrow { font-family: 'Inter', sans-serif; letter-spacing: 0.04em; font-size: 16px; }
 .workflow-title {
   font-family: 'Playfair Display', serif;
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--ink);
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.v-modern .workflow-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 20px; }
+.v-modern .workflow-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 26px; }
 .workflow-decision {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 2px;
-  font-size: 10px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-family: 'Inter', sans-serif;
   border: 1px solid;
 }
-.v-modern .workflow-decision { border-radius: 999px; letter-spacing: 0.04em; text-transform: none; font-size: 11px; }
+.v-modern .workflow-decision { border-radius: 999px; letter-spacing: 0.04em; text-transform: none; font-size: 16px; }
 .workflow-decision-ok {
   background: var(--ok-bg);
   color: var(--ok);
@@ -1648,7 +1648,7 @@ input, select, textarea { font-family: inherit; }
   border-color: var(--warn);
 }
 .workflow-comment {
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
   margin-top: 6px;
   font-style: italic;
@@ -1676,7 +1676,7 @@ input, select, textarea { font-family: inherit; }
 }
 .workflow-progress-pct {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--gold-deep);
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1692,7 +1692,7 @@ input, select, textarea { font-family: inherit; }
   gap: 8px;
   align-items: flex-start;
   padding: 4px 0;
-  font-size: 12px;
+  font-size: 17px;
 }
 .wf-step-check {
   width: 16px;
@@ -1724,13 +1724,13 @@ input, select, textarea { font-family: inherit; }
 .wf-step-label {
   font-weight: 600;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 17px;
   line-height: 1.3;
 }
 .v-classic .wf-step-label { font-family: 'Playfair Display', serif; font-weight: 500; }
 .wf-step-todo .wf-step-label { color: var(--text-3); font-weight: 400; }
 .wf-step-value {
-  font-size: 10px;
+  font-size: 15px;
   color: var(--gold-deep);
   font-family: 'JetBrains Mono', monospace;
   margin-top: 1px;
@@ -1766,7 +1766,7 @@ input, select, textarea { font-family: inherit; }
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  font-size: 13px;
+  font-size: 18px;
   color: var(--text);
 }
 .v-modern .replace-banner { border-radius: 8px; }
@@ -1781,7 +1781,7 @@ input, select, textarea { font-family: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 17px;
   color: var(--ok);
   max-width: 780px;
 }
@@ -1827,7 +1827,7 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .letter-overlay-head { border-radius: 12px 12px 0 0; }
 .letter-overlay-eyebrow {
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold);
@@ -1837,20 +1837,20 @@ input, select, textarea { font-family: inherit; }
 .v-modern .letter-overlay-eyebrow { font-family: 'Inter', sans-serif; letter-spacing: 0.06em; }
 .letter-overlay-title {
   font-family: 'Playfair Display', serif;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--cream);
   letter-spacing: 0.02em;
 }
 .v-modern .letter-overlay-title { font-family: 'Fraunces', serif; font-weight: 500; }
 .letter-overlay-sub {
-  font-size: 13px;
+  font-size: 18px;
   color: #C9BE9C;
   margin-top: 4px;
   font-style: italic;
 }
 .letter-overlay-wordcount {
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 600;
   margin-top: 6px;
 }
@@ -1876,12 +1876,12 @@ input, select, textarea { font-family: inherit; }
   padding: 28px 32px;
   overflow-y: auto;
   flex: 1;
-  font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  font-family: 'Inter', 'EB Garamond', Georgia, sans-serif;
   color: var(--text);
-  font-size: 15px;
+  font-size: 20px;
   line-height: 1.7;
 }
-.v-modern .letter-overlay-body { font-family: 'Inter', sans-serif; font-size: 14px; }
+.v-modern .letter-overlay-body { font-family: 'Inter', sans-serif; font-size: 19px; }
 .letter-overlay-body p {
   margin: 0 0 14px;
   text-wrap: pretty;
@@ -1896,7 +1896,7 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-3);
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.02em;
@@ -1965,7 +1965,7 @@ input, select, textarea { font-family: inherit; }
 }
 .sponsor-card-info { flex: 1; }
 .sponsor-role {
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold-deep);
@@ -1973,15 +1973,15 @@ input, select, textarea { font-family: inherit; }
   font-family: 'Playfair Display', serif;
   margin-bottom: 2px;
 }
-.v-modern .sponsor-role { font-family: 'Inter', sans-serif; letter-spacing: 0.06em; font-size: 10px; }
+.v-modern .sponsor-role { font-family: 'Inter', sans-serif; letter-spacing: 0.06em; font-size: 15px; }
 .sponsor-name {
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--ink);
 }
 .v-classic .sponsor-name { font-family: 'Playfair Display', serif; }
 .sponsor-meta {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-2);
   margin-top: 2px;
   font-style: italic;
@@ -1999,7 +1999,7 @@ input, select, textarea { font-family: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-2);
   font-family: 'JetBrains Mono', monospace;
 }
@@ -2020,18 +2020,18 @@ input, select, textarea { font-family: inherit; }
 
 .sponsor-letter-main { flex: 1; }
 .sponsor-letter-title {
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--ink);
 }
-.v-classic .sponsor-letter-title { font-family: 'Playfair Display', serif; font-size: 13px; }
+.v-classic .sponsor-letter-title { font-family: 'Playfair Display', serif; font-size: 18px; }
 .sponsor-letter-sub {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-2);
   margin-top: 1px;
 }
 .sponsor-letter-wordcount {
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 600;
   margin-top: 4px;
 }
@@ -2046,7 +2046,7 @@ input, select, textarea { font-family: inherit; }
   color: var(--gold-light);
   border: 1px solid var(--gold);
   border-radius: 2px;
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2084,14 +2084,14 @@ input, select, textarea { font-family: inherit; }
 }
 .pdf-title {
   font-family: 'Playfair Display', serif;
-  font-size: 14px;
+  font-size: 19px;
   font-weight: 700;
   color: var(--gold-light);
   letter-spacing: 0.03em;
 }
 .v-modern .pdf-title { font-family: 'Fraunces', serif; }
 .pdf-sub {
-  font-size: 11px;
+  font-size: 16px;
   color: #C9BE9C;
   margin-top: 2px;
   font-family: 'JetBrains Mono', monospace;
@@ -2197,21 +2197,21 @@ input, select, textarea { font-family: inherit; }
 }
 .dz-title {
   font-family: 'Playfair Display', serif;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--ink);
   margin-bottom: 2px;
 }
 .v-modern .dz-title { font-family: 'Fraunces', serif; font-weight: 500; }
 .dz-note {
-  font-size: 12px;
+  font-size: 17px;
   color: var(--warn);
   font-weight: 600;
   margin-bottom: 8px;
   font-style: italic;
 }
 .dz-drop-line {
-  font-size: 14px;
+  font-size: 19px;
   color: var(--text-2);
 }
 .dz-drop-line b {
@@ -2219,7 +2219,7 @@ input, select, textarea { font-family: inherit; }
   text-decoration: underline;
 }
 .dz-role {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-3);
   margin-top: 10px;
   padding: 6px 14px;
@@ -2241,12 +2241,12 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--line);
   padding: 10px 14px;
   border-radius: 2px;
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
 }
 .v-modern .upload-help { border-radius: 8px; }
 .upload-help-title {
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold-deep);
@@ -2281,25 +2281,25 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 18px;
+  font-family: 'Inter', sans-serif;
+  font-size: 24px;
   font-weight: 700;
   clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
 }
 .letter-brother-name {
   font-family: 'Playfair Display', serif;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--ink);
 }
 .letter-brother-chapter {
-  font-size: 12px;
+  font-size: 17px;
   color: var(--gold-deep);
   font-weight: 600;
   font-style: italic;
 }
 .letter-brother-init {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-3);
   font-family: 'JetBrains Mono', monospace;
   margin-top: 2px;
@@ -2312,24 +2312,24 @@ input, select, textarea { font-family: inherit; }
 }
 .letter-h1 {
   font-family: 'Playfair Display', serif;
-  font-size: 16px;
+  font-size: 21px;
   font-weight: 700;
   letter-spacing: 0.18em;
   color: var(--ink);
 }
 .letter-date {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
 }
 .letter-addressee {
-  font-size: 13px;
+  font-size: 18px;
   line-height: 1.6;
   color: var(--text);
   margin-bottom: 14px;
 }
 .letter-page p {
-  font-size: 13px;
+  font-size: 18px;
   line-height: 1.7;
   margin: 10px 0;
   text-wrap: pretty;
@@ -2337,16 +2337,16 @@ input, select, textarea { font-family: inherit; }
 .letter-signature { margin-top: 20px; }
 .letter-sig-mark {
   font-family: 'Cedarville Cursive', cursive;
-  font-size: 24px;
+  font-size: 31px;
   color: var(--ink);
   margin-bottom: 4px;
 }
-.letter-sig-name { font-size: 14px; color: var(--ink); font-family: 'Playfair Display', serif; }
-.letter-sig-details { font-size: 11px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; }
+.letter-sig-name { font-size: 19px; color: var(--ink); font-family: 'Playfair Display', serif; }
+.letter-sig-details { font-size: 16px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; }
 
 /* NDA clauses */
 .nda-clause {
-  font-size: 12px;
+  font-size: 17px;
   line-height: 1.7;
   color: var(--text);
   margin-bottom: 8px;
@@ -2365,15 +2365,15 @@ input, select, textarea { font-family: inherit; }
 }
 .checklist-group:last-child { border-bottom: none; margin-bottom: 0; }
 .checklist-group-title {
-  font-size: 9px;
+  font-size: 13px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--text-3);
   font-weight: 700;
   margin: 6px 0 4px;
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Inter', sans-serif;
 }
-.v-modern .checklist-group-title { font-family: 'Inter', sans-serif; font-size: 10px; letter-spacing: 0.06em; color: #8A836F; }
+.v-modern .checklist-group-title { font-family: 'Inter', sans-serif; font-size: 15px; letter-spacing: 0.06em; color: #8A836F; }
 
 /* ==========================================================================
    Chapter tags, featured, etc.
@@ -2391,13 +2391,13 @@ input, select, textarea { font-family: inherit; }
   font-weight: 600;
   color: var(--ink);
   font-family: 'Playfair Display', serif;
-  font-size: 13px;
+  font-size: 18px;
 }
 .v-modern .chapter-name { font-family: 'Inter', sans-serif; font-weight: 600; }
 .chapter-type-mini {
   display: inline-block;
   padding: 1px 7px;
-  font-size: 9px;
+  font-size: 13px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 700;
@@ -2411,7 +2411,7 @@ input, select, textarea { font-family: inherit; }
 .chapter-type-alumni     { background: var(--ink);     color: var(--gold-light); border-color: var(--gold); }
 
 .cand-area {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-3);
   margin-top: 2px;
   font-family: 'JetBrains Mono', monospace;
@@ -2421,7 +2421,7 @@ input, select, textarea { font-family: inherit; }
 .featured-star {
   color: var(--gold);
   margin-left: 6px;
-  font-size: 14px;
+  font-size: 19px;
   cursor: help;
 }
 
@@ -2432,7 +2432,7 @@ input, select, textarea { font-family: inherit; }
   background: var(--gold);
   color: var(--ink);
   border-radius: 2px;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -2442,7 +2442,7 @@ input, select, textarea { font-family: inherit; }
 
 .detail-meta-2 {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-3);
 }
 
@@ -2474,13 +2474,13 @@ input, select, textarea { font-family: inherit; }
 }
 .vax-title {
   font-family: 'Playfair Display', serif;
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--ink);
 }
 .vax-sub {
-  font-size: 10px;
+  font-size: 15px;
   color: var(--text-2);
   font-style: italic;
   margin-top: 4px;
@@ -2497,7 +2497,7 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   justify-content: center;
   font-family: 'Playfair Display', serif;
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: 0.06em;
 }
@@ -2510,7 +2510,7 @@ input, select, textarea { font-family: inherit; }
 .vax-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 16px;
   margin-top: 8px;
   border: 1px solid var(--ink);
 }
@@ -2519,7 +2519,7 @@ input, select, textarea { font-family: inherit; }
   text-align: left;
   padding: 6px 8px;
   font-family: 'Playfair Display', serif;
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   border-bottom: 1px solid var(--ink);
@@ -2529,7 +2529,7 @@ input, select, textarea { font-family: inherit; }
 .vax-table td {
   padding: 6px 8px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
+  font-size: 15px;
   border-bottom: 1px solid var(--line-soft);
   border-right: 1px solid var(--line-soft);
 }
@@ -2550,13 +2550,13 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px dotted var(--line);
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text);
 }
 .init-row:last-child { border-bottom: none; }
 .init-line {
   font-family: 'Cedarville Cursive', cursive;
-  font-size: 16px;
+  font-size: 21px;
   color: var(--ink);
   text-align: center;
   border-bottom: 1px solid var(--ink);
@@ -2576,8 +2576,8 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   justify-content: space-between;
   padding: 3px 0;
-  font-size: 12px;
-  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
+  font-family: 'Inter', sans-serif;
 }
 .grad-line span { color: #C9BE9C; }
 .grad-line b { color: var(--gold-light); }
@@ -2635,7 +2635,7 @@ input, select, textarea { font-family: inherit; }
 
 .signin-brand-district {
   font-family: 'Playfair Display', serif;
-  font-size: 24px;
+  font-size: 31px;
   font-weight: 700;
   color: var(--gold);
   letter-spacing: 0.06em;
@@ -2645,14 +2645,14 @@ input, select, textarea { font-family: inherit; }
 
 .signin-brand-org {
   font-family: 'Playfair Display', serif;
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--cream);
   letter-spacing: 0.24em;
   line-height: 1.5;
 }
 .signin-brand-founded {
-  font-size: 11px;
+  font-size: 16px;
   color: #C9BE9C;
   font-style: italic;
   margin-top: 14px;
@@ -2662,7 +2662,7 @@ input, select, textarea { font-family: inherit; }
   font-family: 'Playfair Display', serif;
   font-style: italic;
   color: var(--gold);
-  font-size: 14px;
+  font-size: 19px;
   margin: 24px 0;
   padding: 16px 0;
   border-top: 1px solid rgba(201,154,59,0.35);
@@ -2672,14 +2672,14 @@ input, select, textarea { font-family: inherit; }
 .signin-brand-tool { margin-top: auto; }
 .signin-brand-tool-title {
   font-family: 'Playfair Display', serif;
-  font-size: 16px;
+  font-size: 21px;
   font-weight: 700;
   color: var(--gold-light);
   letter-spacing: 0.04em;
 }
 .v-modern .signin-brand-tool-title { font-family: 'Fraunces', serif; font-weight: 500; }
 .signin-brand-tool-sub {
-  font-size: 11px;
+  font-size: 16px;
   color: #C9BE9C;
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.06em;
@@ -2694,27 +2694,27 @@ input, select, textarea { font-family: inherit; }
 }
 .signin-header { margin-bottom: 28px; }
 .signin-eyebrow {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--gold-deep);
   letter-spacing: 0.24em;
   text-transform: uppercase;
   font-weight: 700;
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Inter', sans-serif;
   margin-bottom: 6px;
 }
-.v-modern .signin-eyebrow { font-family: 'Inter', sans-serif; letter-spacing: 0.08em; font-size: 12px; }
+.v-modern .signin-eyebrow { font-family: 'Inter', sans-serif; letter-spacing: 0.08em; font-size: 17px; }
 
 .signin-title {
   font-family: 'Playfair Display', serif;
-  font-size: 30px;
+  font-size: 38px;
   font-weight: 700;
   color: var(--ink);
   margin: 0 0 8px;
   letter-spacing: -0.01em;
 }
-.v-modern .signin-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 28px; }
+.v-modern .signin-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 35px; }
 .signin-sub {
-  font-size: 14px;
+  font-size: 19px;
   color: var(--text-2);
   line-height: 1.5;
   max-width: 460px;
@@ -2725,15 +2725,15 @@ input, select, textarea { font-family: inherit; }
 .signin-label {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 16px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-2);
   font-weight: 700;
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Inter', sans-serif;
   margin-bottom: 5px;
 }
-.v-modern .signin-label { font-family: 'Inter', sans-serif; letter-spacing: 0.04em; font-size: 12px; text-transform: none; }
+.v-modern .signin-label { font-family: 'Inter', sans-serif; letter-spacing: 0.04em; font-size: 17px; text-transform: none; }
 .signin-forgot {
   color: var(--gold-deep);
   text-decoration: none;
@@ -2746,7 +2746,7 @@ input, select, textarea { font-family: inherit; }
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 2px;
-  font-size: 15px;
+  font-size: 20px;
   color: var(--text);
   font-family: inherit;
   outline: none;
@@ -2765,7 +2765,7 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--danger);
   border-radius: 2px;
   color: var(--danger);
-  font-size: 12px;
+  font-size: 17px;
   margin-bottom: 14px;
   line-height: 1.5;
 }
@@ -2774,7 +2774,7 @@ input, select, textarea { font-family: inherit; }
 .signin-submit {
   width: 100%;
   padding: 12px 20px;
-  font-size: 14px;
+  font-size: 19px;
   letter-spacing: 0.06em;
   font-weight: 700;
   justify-content: center;
@@ -2791,7 +2791,7 @@ input, select, textarea { font-family: inherit; }
   gap: 12px;
   margin: 18px 0;
   color: var(--text-3);
-  font-size: 11px;
+  font-size: 16px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -2805,7 +2805,7 @@ input, select, textarea { font-family: inherit; }
   width: 100%;
   padding: 11px 20px;
   justify-content: center;
-  font-size: 13px;
+  font-size: 18px;
 }
 
 /* Officer directory */
@@ -2815,7 +2815,7 @@ input, select, textarea { font-family: inherit; }
 }
 .signin-directory-title {
   font-family: 'Playfair Display', serif;
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--ink);
   margin-bottom: 4px;
@@ -2823,21 +2823,21 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .signin-directory-title { font-family: 'Fraunces', serif; font-weight: 500; }
 .signin-directory-sub {
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-3);
   font-style: italic;
   margin-bottom: 14px;
 }
 .signin-tier-label {
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold-deep);
   font-weight: 700;
   margin: 16px 0 8px;
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Inter', sans-serif;
 }
-.v-modern .signin-tier-label { font-family: 'Inter', sans-serif; letter-spacing: 0.06em; font-size: 11px; }
+.v-modern .signin-tier-label { font-family: 'Inter', sans-serif; letter-spacing: 0.06em; font-size: 16px; }
 
 .signin-officer-list {
   display: grid;
@@ -2870,7 +2870,7 @@ input, select, textarea { font-family: inherit; }
 .officer-card-body { flex: 1; min-width: 0; }
 .officer-card-name {
   font-family: 'Playfair Display', serif;
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--ink);
   line-height: 1.2;
@@ -2880,14 +2880,14 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .officer-card-name { font-family: 'Inter', sans-serif; font-weight: 600; }
 .officer-card-title {
-  font-size: 10px;
+  font-size: 15px;
   color: var(--text-2);
   margin-top: 2px;
   line-height: 1.3;
 }
 .officer-card-area { color: var(--gold-deep); font-weight: 600; }
 .officer-card-scope {
-  font-size: 9px;
+  font-size: 13px;
   color: var(--gold-deep);
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.06em;
@@ -2935,7 +2935,7 @@ input, select, textarea { font-family: inherit; }
 .topbar-brand-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 .topbar-app {
   font-family: 'Playfair Display', serif;
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--gold-light);
   letter-spacing: 0.04em;
@@ -2943,7 +2943,7 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .topbar-app { font-family: 'Fraunces', serif; font-weight: 500; }
 .topbar-sub {
-  font-size: 10px;
+  font-size: 15px;
   color: #C9BE9C;
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.06em;
@@ -2972,7 +2972,7 @@ input, select, textarea { font-family: inherit; }
 
 .user-chip-btn .user-chip-text { text-align: left; }
 .user-chip-btn .user-chip-name {
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--cream);
   font-family: 'Playfair Display', serif;
@@ -2981,7 +2981,7 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .user-chip-btn .user-chip-name { font-family: 'Inter', sans-serif; }
 .user-chip-btn .user-chip-role {
-  font-size: 10px;
+  font-size: 15px;
   color: var(--gold-light);
   margin-top: 2px;
   font-family: 'JetBrains Mono', monospace;
@@ -3018,18 +3018,18 @@ input, select, textarea { font-family: inherit; }
 }
 .user-menu-name {
   font-family: 'Playfair Display', serif;
-  font-size: 14px;
+  font-size: 19px;
   font-weight: 700;
   color: var(--ink);
 }
 .v-modern .user-menu-name { font-family: 'Inter', sans-serif; }
 .user-menu-title {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-2);
   margin-top: 2px;
 }
 .user-menu-area {
-  font-size: 10px;
+  font-size: 15px;
   color: var(--gold-deep);
   font-family: 'JetBrains Mono', monospace;
   margin-top: 3px;
@@ -3042,7 +3042,7 @@ input, select, textarea { font-family: inherit; }
   padding: 8px 16px;
   background: var(--ok-bg);
   color: var(--ok);
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.06em;
   border-bottom: 1px solid var(--line);
@@ -3060,7 +3060,7 @@ input, select, textarea { font-family: inherit; }
   background: #FFF;
   border: none;
   color: var(--text);
-  font-size: 13px;
+  font-size: 18px;
   font-family: inherit;
   cursor: pointer;
   text-align: left;
@@ -3075,12 +3075,12 @@ input, select, textarea { font-family: inherit; }
    ========================================================================== */
 
 .meta-scope {
-  font-size: 10px;
+  font-size: 15px;
   color: var(--gold-light);
   margin-top: 4px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Inter', sans-serif;
   font-weight: 600;
 }
 .v-modern .meta-scope { font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
@@ -3094,7 +3094,7 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--warn);
   border-radius: 2px;
   margin-bottom: 16px;
-  font-size: 13px;
+  font-size: 18px;
   color: var(--text);
   color: var(--warn);
 }
@@ -3131,7 +3131,7 @@ input, select, textarea { font-family: inherit; }
 }
 .access-denied-title {
   font-family: 'Playfair Display', serif;
-  font-size: 24px;
+  font-size: 31px;
   font-weight: 700;
   color: var(--ink);
   margin-bottom: 16px;
@@ -3139,7 +3139,7 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .access-denied-title { font-family: 'Fraunces', serif; font-weight: 500; }
 .access-denied-body {
-  font-size: 14px;
+  font-size: 19px;
   color: var(--text);
   max-width: 500px;
   margin: 0 auto 14px;
@@ -3157,7 +3157,7 @@ input, select, textarea { font-family: inherit; }
   padding: 1px 6px;
   background: var(--gold);
   color: var(--ink);
-  font-size: 8px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.16em;
   border-radius: 2px;
@@ -3179,15 +3179,15 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .add-hero { border-bottom: 1px solid #E4DFCF; }
 .add-title {
-  font-size: 32px;
+  font-size: 40px;
   font-weight: 700;
   color: var(--ink);
   margin: 4px 0;
 }
 .v-classic .add-title { font-family: 'Playfair Display', serif; }
-.v-modern .add-title { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 500; }
+.v-modern .add-title { font-family: 'Fraunces', serif; font-size: 35px; font-weight: 500; }
 .add-sub {
-  font-size: 14px;
+  font-size: 19px;
   color: var(--text-2);
   max-width: 700px;
   font-style: italic;
@@ -3242,13 +3242,13 @@ input, select, textarea { font-family: inherit; }
 .v-modern .add-mode-icon { border-radius: 10px; }
 .add-mode-label {
   font-family: 'Playfair Display', serif;
-  font-size: 16px;
+  font-size: 21px;
   font-weight: 700;
   color: var(--ink);
 }
-.v-modern .add-mode-label { font-family: 'Fraunces', serif; font-weight: 500; font-size: 17px; }
+.v-modern .add-mode-label { font-family: 'Fraunces', serif; font-weight: 500; font-size: 23px; }
 .add-mode-sub {
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
   margin-top: 2px;
 }
@@ -3283,19 +3283,19 @@ input, select, textarea { font-family: inherit; }
   justify-content: center;
   font-family: 'Playfair Display', serif;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 20px;
   border: 1.5px solid var(--gold);
   flex-shrink: 0;
 }
 .add-form-section-title {
   font-family: 'Playfair Display', serif;
-  font-size: 17px;
+  font-size: 23px;
   font-weight: 700;
   color: var(--ink);
 }
-.v-modern .add-form-section-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 18px; }
+.v-modern .add-form-section-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 24px; }
 .add-form-section-sub {
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
   margin-top: 2px;
   font-style: italic;
@@ -3309,7 +3309,7 @@ input, select, textarea { font-family: inherit; }
   background: var(--paper);
   color: var(--text-2);
   border: 1px solid var(--line);
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -3345,18 +3345,18 @@ input, select, textarea { font-family: inherit; }
 .ff-span-4 { grid-column: span 4; }
 .ff-label {
   display: block;
-  font-size: 11px;
+  font-size: 16px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-2);
   font-weight: 700;
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Inter', sans-serif;
   margin-bottom: 5px;
 }
-.v-modern .ff-label { font-family: 'Inter', sans-serif; letter-spacing: 0.02em; font-size: 12px; text-transform: none; }
+.v-modern .ff-label { font-family: 'Inter', sans-serif; letter-spacing: 0.02em; font-size: 17px; text-transform: none; }
 .ff-req { color: var(--danger); margin-left: 3px; }
 .ff-error {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--danger);
   margin-top: 4px;
   font-weight: 600;
@@ -3366,7 +3366,7 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--warn);
   margin-top: 4px;
   font-weight: 600;
@@ -3379,7 +3379,7 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--line);
   border-radius: 2px;
   background: #FFF;
-  font-size: 14px;
+  font-size: 19px;
   color: var(--text);
   font-family: inherit;
   outline: none;
@@ -3402,7 +3402,7 @@ input, select, textarea { font-family: inherit; }
   background: transparent;
   border: none;
   border-right: 1px solid var(--line-soft);
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-2);
   cursor: pointer;
@@ -3425,19 +3425,19 @@ input, select, textarea { font-family: inherit; }
 }
 .v-modern .add-chapter-preview { border-radius: 8px; }
 .chapter-preview-eyebrow {
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--gold-deep);
   font-weight: 700;
   margin-bottom: 4px;
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Inter', sans-serif;
 }
 .chapter-preview-body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 18px;
   color: var(--text);
   flex-wrap: wrap;
 }
@@ -3477,7 +3477,7 @@ input, select, textarea { font-family: inherit; }
 }
 .add-success-title {
   font-family: 'Playfair Display', serif;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--ink);
   letter-spacing: 0.04em;
@@ -3485,7 +3485,7 @@ input, select, textarea { font-family: inherit; }
 .v-modern .add-success-title { font-family: 'Fraunces', serif; font-weight: 500; }
 .add-success-name {
   font-family: 'Playfair Display', serif;
-  font-size: 28px;
+  font-size: 35px;
   font-weight: 700;
   color: var(--gold-deep);
   margin: 8px 0 4px;
@@ -3493,13 +3493,13 @@ input, select, textarea { font-family: inherit; }
 .v-modern .add-success-name { font-family: 'Fraunces', serif; font-weight: 500; }
 .add-success-id {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
   margin-bottom: 16px;
   letter-spacing: 0.04em;
 }
 .add-success-msg {
-  font-size: 14px;
+  font-size: 19px;
   color: var(--text);
   max-width: 480px;
   margin: 0 auto 24px;
@@ -3528,22 +3528,22 @@ input, select, textarea { font-family: inherit; }
 .v-modern .csv-instructions { border-radius: 12px; border-color: #E8E4D8; border-left-color: var(--gold); }
 .csv-inst-title {
   font-family: 'Playfair Display', serif;
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--ink);
   margin-bottom: 12px;
   letter-spacing: 0.02em;
 }
-.v-modern .csv-inst-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 16px; }
+.v-modern .csv-inst-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 21px; }
 .csv-inst-list {
-  font-size: 13px;
+  font-size: 18px;
   color: var(--text);
   margin: 0 0 14px;
   padding-left: 20px;
   line-height: 1.8;
 }
 .csv-inst-fields {
-  font-size: 12px;
+  font-size: 17px;
   color: var(--text-2);
   padding: 10px 12px;
   background: var(--paper);
@@ -3599,13 +3599,13 @@ input, select, textarea { font-family: inherit; }
 .csv-summary-error { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
 .csv-summary-num {
   font-family: 'Playfair Display', serif;
-  font-size: 26px;
+  font-size: 33px;
   font-weight: 700;
   line-height: 1;
 }
 .v-modern .csv-summary-num { font-family: 'Fraunces', serif; font-weight: 500; }
 .csv-summary-label {
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.06em;
   margin-top: 4px;
@@ -3618,7 +3618,7 @@ input, select, textarea { font-family: inherit; }
   border-radius: 2px;
   padding: 12px 16px;
   margin-bottom: 14px;
-  font-size: 12px;
+  font-size: 17px;
 }
 .v-modern .csv-errors { border-radius: 8px; }
 .csv-errors-title {
@@ -3642,14 +3642,14 @@ input, select, textarea { font-family: inherit; }
 .csv-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 17px;
 }
 .csv-table thead th {
   text-align: left;
   padding: 8px 12px;
   background: var(--paper);
   font-family: 'Playfair Display', serif;
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-2);
@@ -3659,7 +3659,7 @@ input, select, textarea { font-family: inherit; }
 .v-modern .csv-table thead th {
   font-family: 'Inter', sans-serif;
   background: #FBF9F0;
-  font-size: 11px;
+  font-size: 16px;
   letter-spacing: 0.02em;
   text-transform: none;
   color: #6B6555;
@@ -3672,17 +3672,17 @@ input, select, textarea { font-family: inherit; }
 }
 .csv-table .mono {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 16px;
 }
 .csv-cell-sub {
-  font-size: 10px;
+  font-size: 15px;
   color: var(--text-3);
   margin-top: 2px;
 }
 .csv-cell-empty {
   color: var(--text-3);
   font-style: italic;
-  font-size: 11px;
+  font-size: 16px;
 }
 
 .csv-preview-actions {
@@ -3701,11 +3701,11 @@ input, select, textarea { font-family: inherit; }
   background: linear-gradient(90deg, var(--ink) 0%, var(--ink-2) 100%);
   color: var(--gold-light);
   padding: 8px 20px;
-  font-size: 11px;
+  font-size: 16px;
   text-align: center;
   letter-spacing: 0.1em;
   border-bottom: 1px solid var(--gold);
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Inter', sans-serif;
   font-style: italic;
 }
 .demo-banner b { color: var(--gold); font-style: normal; letter-spacing: 0.14em; text-transform: uppercase; }
@@ -3737,7 +3737,7 @@ input, select, textarea { font-family: inherit; }
 @media (max-width: 720px) {
   .app-shell { padding: 16px; }
   .stat-row { grid-template-columns: repeat(2, 1fr); }
-  .roster-table { font-size: 12px; }
+  .roster-table { font-size: 17px; }
   .roster-table th:nth-child(3), .roster-table td:nth-child(3),
   .roster-table th:nth-child(6), .roster-table td:nth-child(6) { display: none; }
   .banner-inner { flex-direction: column; align-items: flex-start; }
