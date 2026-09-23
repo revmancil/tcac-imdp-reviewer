@@ -8,6 +8,7 @@ import {
   STATUS_LIST,
   WORKFLOW_STEPS,
   REQUIRED_DOCS,
+  requiredDocsFor,
   officerCanSeeChapterKey,
   officerCanSeeArea,
   getChapter,
@@ -274,7 +275,7 @@ app.get('/candidates/missing-report', async (c) => {
   const list = await listCandidates({ allowedChapterKeys: allowed, sort: 'id' })
   const rows: any[] = []
   list.forEach((cand) => {
-    REQUIRED_DOCS.forEach((d) => {
+    requiredDocsFor(cand.chapterType).forEach((d) => {
       const doc = cand.docs[d.key]
       if (!doc || !doc.present || !doc.valid) {
         rows.push({

@@ -5,6 +5,7 @@
 
 import type {
   Chapter,
+  ChapterType,
   OfficerPublic,
   RequiredDocDef,
   StatusDef,
@@ -17,14 +18,22 @@ export const REQUIRED_DOCS: RequiredDocDef[] = [
   { key: 'essay', label: 'Candidate Essay', short: 'Essay', pages: 3 },
   { key: 'resume', label: 'Candidate Resume', short: 'Resume', pages: 2 },
   { key: 'transcript', label: 'Official Transcript', short: 'Transcript', pages: 3 },
+  { key: 'enrollmentLetter', label: 'Enrollment / Academic Standing Letter', short: 'Enrollment', pages: 1, collegiateOnly: true },
   { key: 'medical', label: 'Medical Release', short: 'Medical', pages: 2 },
   { key: 'voter', label: 'Voter Registration', short: 'Voter', pages: 1 },
-  { key: 'covidWaiver', label: 'COVID Waiver (Signed)', short: 'COVID Waiver', pages: 2 },
-  { key: 'covidVax', label: 'Proof of COVID-19 Vaccination', short: 'Vax Record', pages: 1 },
   { key: 'financial', label: 'Financial Commitment Form', short: 'Financial', pages: 2 },
   { key: 'nda', label: 'Non-Disclosure Agreement', short: 'NDA', pages: 2 },
   { key: 'headshot', label: 'Headshot', short: 'Photo', pages: 1 },
 ];
+
+// Filters the master document list down to what actually applies to a given
+// candidate's chapter type -- e.g. the enrollment letter only makes sense
+// for active students, not alumni. Use this everywhere a checklist, viewer,
+// or completeness count needs "the docs THIS candidate needs," rather than
+// iterating REQUIRED_DOCS directly.
+export function requiredDocsFor(chapterType: ChapterType): RequiredDocDef[] {
+  return REQUIRED_DOCS.filter((d) => !d.collegiateOnly || chapterType === 'collegiate');
+}
 
 export const WORKFLOW_STEPS: WorkflowStepDef[] = [
   { key: 'pretest', label: 'Pretest 100%' },

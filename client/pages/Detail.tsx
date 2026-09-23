@@ -4,6 +4,7 @@ import { Avatar, DocStateDot, Icon, StatusPill } from '../components/Brand'
 import { useApp } from '../context'
 import { api } from '../api'
 import { DocContent } from './DocContent'
+import { requiredDocsFor } from '../../shared/reference'
 import type { Brother, Candidate, DocState } from '../../shared/types'
 
 export default function Detail() {
@@ -69,10 +70,10 @@ export default function Detail() {
   if (!candidate || !reference) return <div className="app-loading">Loading candidate…</div>
 
   const chapter = reference.chapters[candidate.chapterKey]
+  const applicableDocs = requiredDocsFor(candidate.chapterType)
   const comp = (() => {
-    const docs = reference.requiredDocs
-    const valid = docs.filter((d) => candidate.docs[d.key]?.present && candidate.docs[d.key]?.valid).length
-    return { valid, total: docs.length }
+    const valid = applicableDocs.filter((d) => candidate.docs[d.key]?.present && candidate.docs[d.key]?.valid).length
+    return { valid, total: applicableDocs.length }
   })()
 
   const hasApplication = !!candidate.docs.application?.present
@@ -163,7 +164,7 @@ export default function Detail() {
       <div className="split">
         <div className="viewer">
           <div className="viewer-tabs">
-            {reference.requiredDocs.map((d) => {
+            {applicableDocs.map((d) => {
               const doc = candidate.docs[d.key]
               const active = activeDoc === d.key
               return (
@@ -191,7 +192,7 @@ export default function Detail() {
         <aside className="checklist">
           <div className="checklist-section">
             <div className="section-title">Document Checklist</div>
-            {reference.requiredDocs.map((d) => {
+            {applicableDocs.map((d) => {
               const doc = candidate.docs[d.key]
               const state = !doc?.present ? 'missing' : !doc.valid ? 'flagged' : 'valid'
               return (

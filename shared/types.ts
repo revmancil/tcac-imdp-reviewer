@@ -56,6 +56,10 @@ export interface RequiredDocDef {
   label: string;
   short: string;
   pages: number;
+  // When set, this document only applies to candidates of that chapter type
+  // (e.g. the enrollment letter only makes sense for active students).
+  // Absent means it applies to everyone.
+  collegiateOnly?: boolean;
 }
 
 export interface DocState {

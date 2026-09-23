@@ -2,12 +2,12 @@
 // Used to populate the database on first run (see src/lib/db.ts ensureReady()).
 // In production this table is populated by real intake submissions instead.
 
-import { REQUIRED_DOCS, STATUS } from './reference.js';
-import type { Candidate, DocState } from './types.js';
+import { requiredDocsFor, STATUS } from './reference.js';
+import type { Candidate, ChapterType, DocState } from './types.js';
 
-function baseDocs(overrides: Record<string, Partial<DocState>> = {}): Record<string, DocState> {
+function baseDocs(chapterType: ChapterType, overrides: Record<string, Partial<DocState>> = {}): Record<string, DocState> {
   const base: Record<string, DocState> = {};
-  REQUIRED_DOCS.forEach((d) => {
+  requiredDocsFor(chapterType).forEach((d) => {
     base[d.key] = { present: true, valid: true, note: null, file: null };
   });
   Object.entries(overrides).forEach(([k, v]) => {
@@ -23,8 +23,6 @@ const NAZHIR_FILES: Record<string, string> = {
   transcript: '/static/pdfs/2897040/Transcript.pdf',
   medical: '/static/pdfs/2897040/Medical.pdf',
   voter: '/static/pdfs/2897040/Voter.pdf',
-  covidWaiver: '/static/pdfs/2897040/COVID_Waiver.pdf',
-  covidVax: '/static/pdfs/2897040/COVID_Vaccination.pdf',
 };
 
 const genericLetter = (kind: 'sponsor' | 'recommender') =>
@@ -118,15 +116,13 @@ const NAZHIR: Candidate = {
     signatures: { pass: true, value: 'All required signatures present' },
     dates: { pass: true, value: 'All dates within window' },
   },
-  docs: baseDocs({
+  docs: baseDocs('alumni', {
     application: { file: NAZHIR_FILES.application },
     essay: { file: NAZHIR_FILES.essay },
     resume: { file: NAZHIR_FILES.resume },
     transcript: { file: NAZHIR_FILES.transcript },
     medical: { file: NAZHIR_FILES.medical },
     voter: { file: NAZHIR_FILES.voter },
-    covidWaiver: { file: NAZHIR_FILES.covidWaiver },
-    covidVax: { file: NAZHIR_FILES.covidVax },
     nda: { present: false, valid: false, note: 'Awaiting NDA execution', file: null },
     financial: { present: false, valid: false, note: 'Awaiting fee payment · Balance $0.00 (paid, awaiting form)', file: null },
     headshot: { present: true, valid: true, note: null, file: null },
@@ -167,7 +163,7 @@ function person(overrides: Partial<Candidate> & { id: string; name: string }): C
     term: '2026 FALL',
     sponsor: null,
     recommender: null,
-    docs: baseDocs(),
+    docs: baseDocs(overrides.chapterType || 'collegiate'),
     reviewer: 'Bro. C. Freeman',
     ...overrides,
   } as Candidate;
@@ -201,11 +197,10 @@ export const SEED_CANDIDATES: Candidate[] = [
     recommender: { name: 'Bro. Damon T. Ellsworth', chapter: 'Beta Tau Lambda', initDate: 'Fall 1999', role: 'Chapter President', email: 'ellsworth@piiotalambda.org', phone: '(832) 555-0503', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.24 ≥ 2.50' }, signatures: { pass: false, value: 'Financial form missing signature on p.2' }, dates: { pass: true, value: 'All dates within window' } },
     workflow: fullWorkflow({ membershipFees: { done: false, value: 'Balance: $95.00' }, ddApproval: { done: false }, hqApproval: { done: false }, medicalReceived: { done: false }, transcriptReceived: { done: false }, pretest: { done: true, value: '100%' } }),
-    docs: baseDocs({
+    docs: baseDocs('collegiate', {
       nda: { present: false, valid: false, note: 'NDA not received', file: null },
       transcript: { present: false, valid: false, note: 'Not received from registrar', file: null },
       financial: { present: true, valid: false, note: 'Missing signature — page 2', file: null },
-      covidVax: { present: false, valid: false, note: 'Not attached', file: null },
     }),
     lastActivity: '2026-07-30',
   }),
@@ -226,9 +221,9 @@ export const SEED_CANDIDATES: Candidate[] = [
     recommender: { name: 'Bro. Reginald Hollis', chapter: 'Xi Kappa Lambda', initDate: 'Fall 2001', role: 'Dean of Members', email: 'hollis@zetakappalambda.org', phone: '(832) 555-0505', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.45 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: false, value: 'Medical form dated 2025-11-04 (>6mo old)' } },
     workflow: fullWorkflow({ membershipFees: { done: false, value: 'Balance: $95.00' }, ddApproval: { done: false }, hqApproval: { done: false }, medicalReceived: { done: false }, transcriptReceived: { done: false }, pretest: { done: true, value: '100%' } }),
-    docs: baseDocs({
+    docs: baseDocs('collegiate', {
       medical: { present: true, valid: false, note: 'Dated 2025-11-04 — exceeds 6-month window', file: null },
-      covidWaiver: { present: false, valid: false, note: 'Not received', file: null },
+      enrollmentLetter: { present: false, valid: false, note: 'Not received', file: null },
     }),
     lastActivity: '2026-07-30',
   }),
@@ -249,7 +244,7 @@ export const SEED_CANDIDATES: Candidate[] = [
     recommender: { name: 'Bro. Solomon Whitaker', chapter: 'Pi Theta Lambda', initDate: 'Fall 1992', role: 'Historian', email: 'whitaker@kappadeltalambda.org', phone: '(832) 555-0507', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: false, value: '2.41 < 2.50 minimum' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } },
     workflow: fullWorkflow({ membershipFees: { done: false, value: 'Balance: $95.00' }, ddApproval: { done: false }, hqApproval: { done: false }, medicalReceived: { done: false }, transcriptReceived: { done: false }, pretest: { done: true, value: '100%' } }),
-    docs: baseDocs({
+    docs: baseDocs('collegiate', {
       nda: { present: true, valid: false, note: 'Missing initials on p.2', file: null },
       transcript: { present: true, valid: false, note: 'GPA 2.41 below 2.50 minimum', file: null },
       voter: { present: false, valid: false, note: 'Not submitted', file: null },
@@ -310,7 +305,7 @@ export const SEED_CANDIDATES: Candidate[] = [
     recommender: { name: 'Bro. Vernon Ashe', chapter: 'Delta Theta', initDate: 'Fall 2019', role: 'Chapter Advisor', email: 'ashe@zetagamma.org', phone: '(832) 555-0510', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.94 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } },
     workflow: fullWorkflow({ membershipFees: { done: false, value: 'Balance: $95.00' }, ddApproval: { done: false }, hqApproval: { done: false }, medicalReceived: { done: false }, transcriptReceived: { done: false }, pretest: { done: true, value: '100%' } }),
-    docs: baseDocs({
+    docs: baseDocs('collegiate', {
       nda: { present: false, valid: false, note: 'NDA pending', file: null },
       headshot: { present: false, valid: false, note: 'Not attached', file: null },
       voter: { present: true, valid: false, note: 'Expired — issue 2018', file: null },

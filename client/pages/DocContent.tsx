@@ -208,63 +208,30 @@ export function DocContent({ docKey, candidate, chapter }: { docKey: string; can
         </div>
       )
 
-    case 'covidWaiver':
+    case 'enrollmentLetter':
       return (
         <div className="paper">
           <div className="paper-header">
             <div>
-              <div className="paper-title">COVID-19 HEALTH &amp; LIABILITY WAIVER</div>
-              <div className="paper-sub">Alpha Phi Alpha Fraternity, Inc. · Intake Cycle 2026</div>
+              <div className="paper-title">{candidate.school.toUpperCase()}</div>
+              <div className="paper-sub">Office of the Registrar · Enrollment / Academic Standing Letter</div>
+              <div className="paper-sub-2">Issued: {candidate.submitted} · Recipient: Alpha Phi Alpha Fraternity, Inc.</div>
             </div>
+            <div className="official-seal">OFFICIAL</div>
           </div>
           <div className="paper-hr" />
           <div className="paper-fields">
-            <Field label="Candidate" value={candidate.name} />
-            <Field label="Applicant ID" value={candidate.id} />
-            <Field label="Chapter" value={chapter.name} full />
+            <Field label="Student" value={candidate.name} />
+            <Field label="Student ID" value={candidate.id} />
+            <Field label="Classification" value={candidate.classification} />
+            <Field label="Enrollment Status" value="Full-time, currently enrolled" />
           </div>
-          <div className="paper-attest">
-            I acknowledge that COVID-19 is a contagious respiratory illness and that despite reasonable precautions taken by the Fraternity, participation in intake activities may involve exposure. I voluntarily assume this risk and agree to comply with all health protocols established by the chapter and district.
-          </div>
-          <div className="initials-block">
-            <div className="init-row"><span>I have read and understand the health precautions.</span><span className="init-line">{candidate.name.split(' ').map((w) => w[0]).join('')}</span></div>
-            <div className="init-row"><span>I agree to notify chapter leadership of exposure or symptoms.</span><span className="init-line">{candidate.name.split(' ').map((w) => w[0]).join('')}</span></div>
-            <div className="init-row"><span>I release the Fraternity from liability associated with COVID-19.</span><span className="init-line">{candidate.name.split(' ').map((w) => w[0]).join('')}</span></div>
+          <div className="paper-attest small">
+            This letter confirms that the above-named student is currently enrolled in good academic standing at {candidate.school} and is eligible for consideration for membership intake per the chapter's academic requirements.
           </div>
           <div className="paper-sig-row">
-            <div className="sig-field"><div className="sig-line"><span className="sig-mark">{candidate.name.split(' ').map((w) => w[0]).join('.')}</span></div><div className="sig-caption">Candidate Signature</div></div>
+            <div className="sig-field"><div className="sig-line"><span className="sig-mark">Office of the Registrar</span></div><div className="sig-caption">Issuing Office</div></div>
             <div className="sig-field"><div className="sig-line"><span className="sig-mark date">{candidate.submitted}</span></div><div className="sig-caption">Date</div></div>
-          </div>
-        </div>
-      )
-
-    case 'covidVax':
-      return (
-        <div className="paper">
-          <div className="vax-card">
-            <div className="vax-header">
-              <div>
-                <div className="vax-title">CDC · COVID-19 VACCINATION RECORD CARD</div>
-                <div className="vax-sub">Please keep this record card, which includes medical information about the vaccines you have received.</div>
-              </div>
-              <div className="vax-logo">CDC</div>
-            </div>
-            <div className="vax-body">
-              <div className="vax-name-row">
-                <Field label="Last Name" value={candidate.name.split(' ').slice(-1)[0]} />
-                <Field label="First Name" value={candidate.name.split(' ')[0]} />
-                <Field label="MI" value={candidate.name.split(' ')[1]?.[0] || ''} />
-              </div>
-              <Field label="Date of Birth" value="03 / 14 / 2004" full />
-              <table className="vax-table">
-                <thead><tr><th>Product / Manufacturer</th><th>Lot #</th><th>Date</th><th>Clinic Site</th></tr></thead>
-                <tbody>
-                  <tr><td>Pfizer-BioNTech · 1st Dose</td><td>EK-9231</td><td>2021-04-08</td><td>Campus Health Ctr</td></tr>
-                  <tr><td>Pfizer-BioNTech · 2nd Dose</td><td>ER-8834</td><td>2021-04-29</td><td>Campus Health Ctr</td></tr>
-                  <tr><td>Pfizer · Booster</td><td>FA-2201</td><td>2022-01-15</td><td>Local Pharmacy</td></tr>
-                </tbody>
-              </table>
-            </div>
           </div>
         </div>
       )

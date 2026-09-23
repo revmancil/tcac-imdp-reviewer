@@ -4,7 +4,7 @@
 // Notes": "In production, upload to the server and validate row-by-row
 // before commit."
 
-import { CHAPTERS, REQUIRED_DOCS, STATUS } from '../../shared/reference.js';
+import { CHAPTERS, requiredDocsFor, STATUS } from '../../shared/reference.js';
 import type { Candidate, DocState } from '../../shared/types.js';
 
 export interface ManualCandidateInput {
@@ -40,7 +40,7 @@ export function makeCandidate(input: ManualCandidateInput): Candidate {
   const gpa = typeof input.gpa === 'number' ? input.gpa : parseFloat(String(input.gpa)) || 0;
 
   const emptyDocs: Record<string, DocState> = {};
-  REQUIRED_DOCS.forEach((d) => {
+  requiredDocsFor(chapter.type).forEach((d) => {
     emptyDocs[d.key] = { present: false, valid: false, note: 'Not yet received', file: null };
   });
 

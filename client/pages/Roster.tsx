@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { Avatar, CompletenessBar, Icon, ShieldMark, StatusPill } from '../components/Brand'
 import { useApp } from '../context'
 import { api } from '../api'
+import { requiredDocsFor } from '../../shared/reference'
 import type { Candidate } from '../../shared/types'
 
-function completeness(c: Candidate, totalDocs: number) {
-  const valid = Object.values(c.docs).filter((d) => d.present && d.valid).length
-  return { valid, total: totalDocs, pct: Math.round((valid / totalDocs) * 100) }
+function completeness(c: Candidate) {
+  const applicable = requiredDocsFor(c.chapterType)
+  const valid = applicable.filter((d) => c.docs[d.key]?.present && c.docs[d.key]?.valid).length
+  return { valid, total: applicable.length, pct: applicable.length ? Math.round((valid / applicable.length) * 100) : 100 }
 }
 
 export default function Roster() {
@@ -20,8 +22,6 @@ export default function Roster() {
   const [filterChapter, setFilterChapter] = useState('all')
   const [sortBy, setSortBy] = useState('id')
   const [error, setError] = useState('')
-
-  const totalDocs = reference?.requiredDocs.length || 11
 
   const reload = () => {
     api.listCandidates({}).then((r) => setAll(r.candidates)).catch((e) => setError(e.message))
@@ -220,7 +220,7 @@ export default function Roster() {
           </thead>
           <tbody>
             {filtered.map((c) => {
-              const comp = completeness(c, totalDocs)
+              const comp = completeness(c)
               const flags = Object.values(c.checks).filter((x) => x.pass === false).length
               const ch = reference.chapters[c.chapterKey]
               return (
