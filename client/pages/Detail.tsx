@@ -18,6 +18,7 @@ export default function Detail() {
   const [replacingKey, setReplacingKey] = useState<string | null>(null)
   const [letterOverlay, setLetterOverlay] = useState<{ role: string; brother: Brother } | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [flagging, setFlagging] = useState(false)
 
   const load = () => {
     if (!id) return
@@ -44,6 +45,17 @@ export default function Detail() {
       setReplacingKey(null)
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleFlag = async (docKey: string, valid: boolean, note?: string) => {
+    if (!id) return
+    setFlagging(true)
+    try {
+      const { candidate: updated } = await api.flagDoc(id, docKey, valid, note)
+      setCandidate(updated)
+    } finally {
+      setFlagging(false)
     }
   }
 
@@ -186,6 +198,8 @@ export default function Detail() {
               replacing={replacingKey === activeDoc}
               onStartReplace={() => setReplacingKey(activeDoc)}
               onCancelReplace={() => setReplacingKey(null)}
+              onFlag={(valid, note) => handleFlag(activeDoc, valid, note)}
+              flagging={flagging}
             />
           </div>
         </div>
@@ -281,7 +295,7 @@ function ActivityLine({ label, who, when, highlight }: { label: string; who: str
 }
 
 function DocPreview({
-  docKey, doc, candidate, chapter, onUpload, uploading, replacing, onStartReplace, onCancelReplace,
+  docKey, doc, candidate, chapter, onUpload, uploading, replacing, onStartReplace, onCancelReplace, onFlag, flagging,
 }: {
   docKey: string
   doc: DocState | undefined
@@ -292,6 +306,8 @@ function DocPreview({
   replacing: boolean
   onStartReplace: () => void
   onCancelReplace: () => void
+  onFlag: (valid: boolean, note?: string) => void
+  flagging: boolean
 }) {
   const { reference } = useApp()
   const meta = reference?.requiredDocs.find((d) => d.key === docKey)
@@ -334,6 +350,7 @@ function DocPreview({
             </div>
           </div>
           <SignaturePolicyNote meta={meta} />
+          <FlagControl doc={doc} onFlag={onFlag} busy={flagging} />
           {docKey === 'essay' && <EssayWordCount candidate={candidate} />}
           {docKey === 'headshot' ? (
             <div className="headshot-page">
@@ -344,8 +361,8 @@ function DocPreview({
           ) : (
             <iframe src={doc.file} className="doc-pdf-frame" title={meta.label} />
           )}
-          {doc.note && (
-            <div className="doc-flag-annot doc-flag-inline"><Icon name="warn" size={14} /><span>Auto-flag: {doc.note}</span></div>
+          {!doc.valid && doc.note && (
+            <div className="doc-flag-annot doc-flag-inline"><Icon name="warn" size={14} /><span>Flagged: {doc.note}</span></div>
           )}
         </div>
       </div>
@@ -355,10 +372,11 @@ function DocPreview({
   return (
     <div className="doc-canvas">
       <SignaturePolicyNote meta={meta} />
+      <FlagControl doc={doc} onFlag={onFlag} busy={flagging} />
       {docKey === 'essay' && <EssayWordCount candidate={candidate} />}
       <div className="doc-page">
         <DocContent docKey={docKey} candidate={candidate} chapter={chapter} />
-        {doc.note && <div className="doc-flag-annot"><Icon name="warn" size={14} /><span>Auto-flag: {doc.note}</span></div>}
+        {!doc.valid && doc.note && <div className="doc-flag-annot"><Icon name="warn" size={14} /><span>Flagged: {doc.note}</span></div>}
       </div>
       <div className="doc-toolbar">
         <span>Page 1 of {meta.pages} · Preview (mock — no PDF attached)</span>
@@ -368,6 +386,51 @@ function DocPreview({
         </div>
       </div>
     </div>
+  )
+}
+
+function FlagControl({ doc, onFlag, busy }: { doc: DocState | undefined; onFlag: (valid: boolean, note?: string) => void; busy: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('')
+
+  if (!doc?.present) return null
+
+  if (doc.valid === false && doc.note) {
+    return (
+      <div className="flag-control flag-control-active">
+        <div className="flag-control-note"><Icon name="warn" size={13} /> Flagged for review: {doc.note}</div>
+        <button className="tool-btn" disabled={busy} onClick={() => onFlag(true)}>Clear Flag</button>
+      </div>
+    )
+  }
+
+  if (open) {
+    return (
+      <div className="flag-control">
+        <textarea
+          className="flag-control-input"
+          placeholder="What's wrong with this document? (e.g. signature appears typed/electronic, not handwritten)"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={2}
+          autoFocus
+        />
+        <div className="flag-control-actions">
+          <button className="btn-secondary sm" onClick={() => { setOpen(false); setReason('') }}>Cancel</button>
+          <button
+            className="btn-primary sm"
+            disabled={busy || !reason.trim()}
+            onClick={() => { onFlag(false, reason.trim()); setOpen(false); setReason('') }}
+          >
+            Flag for Review
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <button className="tool-btn tool-btn-flag" onClick={() => setOpen(true)}><Icon name="warn" size={13} /> Flag for Review</button>
   )
 }
 

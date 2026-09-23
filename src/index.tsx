@@ -561,6 +561,49 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
   return c.json({ candidate: updated })
 })
 
+// Lets an officer mark an already-submitted document as needing correction
+// (e.g. a signature that doesn't look handwritten, an expired date, a missing
+// initial) -- uploading a file always marks it present+valid, since there's
+// no reliable automated way to catch problems like this; this is how an
+// officer who actually looked at it records that it isn't. Flipping a doc to
+// invalid turns its checklist dot yellow instead of green, same as any other
+// "received but not yet valid" state (see shared/seed-candidates.ts for the
+// pattern this mirrors). Clearing a flag (valid: true) is the same call with
+// no note.
+app.post('/candidates/:id/docs/:docKey/flag', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireOfficer(c, officer)
+  if (denied) return denied
+
+  const { id, docKey } = c.req.param()
+  const candidate = await getCandidate(id)
+  if (!candidate) return c.json({ error: 'Not found' }, 404)
+  if (!officerCanSeeChapterKey(officer, candidate.chapterKey)) return c.json({ error: 'access_denied' }, 403)
+  if (!REQUIRED_DOCS.some((d) => d.key === docKey)) return c.json({ error: 'Unknown document type' }, 400)
+
+  const existing = candidate.docs[docKey]
+  if (!existing?.present) return c.json({ error: 'Document has not been submitted yet' }, 400)
+
+  const body = await c.req.json().catch(() => null)
+  if (!body || typeof body.valid !== 'boolean') return c.json({ error: 'valid (boolean) is required' }, 400)
+  const note = typeof body.note === 'string' ? body.note.trim() : ''
+  if (!body.valid && !note) return c.json({ error: 'A reason is required to flag a document' }, 400)
+
+  const doc = {
+    ...existing,
+    valid: body.valid,
+    note: body.valid ? null : note,
+  }
+  const updated = await updateCandidateDoc(id, docKey, doc)
+  await logAudit(
+    id,
+    officer!.id,
+    body.valid ? 'doc_unflag' : 'doc_flag',
+    body.valid ? `${docKey} cleared by ${officer!.name}` : `${docKey} flagged by ${officer!.name} · ${note}`,
+  )
+  return c.json({ candidate: updated })
+})
+
 app.get('/files/*', async (c) => {
   const key = c.req.path.replace(/^\/api\/files\//, '')
   const file = await getFile(key)

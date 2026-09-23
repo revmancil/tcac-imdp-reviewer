@@ -62,6 +62,11 @@ export const api = {
     form.append('file', file)
     return req<{ candidate: Candidate }>(`/api/candidates/${encodeURIComponent(candidateId)}/docs/${encodeURIComponent(docKey)}`, { method: 'POST', body: form })
   },
+  flagDoc: (candidateId: string, docKey: string, valid: boolean, note?: string) =>
+    req<{ candidate: Candidate }>(`/api/candidates/${encodeURIComponent(candidateId)}/docs/${encodeURIComponent(docKey)}/flag`, {
+      method: 'POST',
+      body: JSON.stringify({ valid, note }),
+    }),
   parseApplication: (file: File) => {
     const form = new FormData()
     form.append('file', file)
