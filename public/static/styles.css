@@ -3842,18 +3842,6 @@ input, select, textarea { font-family: inherit; }
    Note about mock data
    ========================================================================== */
 
-.demo-banner {
-  background: linear-gradient(90deg, var(--ink) 0%, var(--ink-2) 100%);
-  color: var(--gold-light);
-  padding: 8px 20px;
-  font-size: 16px;
-  text-align: center;
-  letter-spacing: 0.1em;
-  border-bottom: 1px solid var(--gold);
-  font-family: 'Inter', sans-serif;
-  font-style: italic;
-}
-.demo-banner b { color: var(--gold); font-style: normal; letter-spacing: 0.14em; text-transform: uppercase; }
 
 /* ==========================================================================
    Responsive
