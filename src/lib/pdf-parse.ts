@@ -15,6 +15,7 @@
 // created (same pattern as the existing CSV import preview).
 import * as mupdf from 'mupdf'
 import { createWorker } from 'tesseract.js'
+import { normalizeName } from '../../shared/names.js'
 import type { Chapter } from '../../shared/types.js'
 
 export interface ParsedApplicationFields {
@@ -200,10 +201,8 @@ function parseHeaderBlock(fullText: string, fields: ParsedApplicationFields, cha
 
 // "Sibley, Roderick L." -> "Bro. Roderick L. Sibley"
 function reverseNameToDisplay(raw: string): string {
-  const clean = raw.trim().replace(/\s+/g, ' ')
-  const [last, rest] = clean.split(',').map((s) => s.trim())
-  if (!last || !rest) return clean.startsWith('Bro.') ? clean : `Bro. ${clean}`
-  return `Bro. ${rest} ${last}`
+  const normalized = normalizeName(raw)
+  return normalized.startsWith('Bro.') ? normalized : `Bro. ${normalized}`
 }
 
 // ---------------------------------------------------------------------------

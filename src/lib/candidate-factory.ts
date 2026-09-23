@@ -6,6 +6,7 @@
 
 import { CHAPTERS, requiredDocsFor, STATUS } from '../../shared/reference.js';
 import { computeSponsorRecommenderCheck } from '../../shared/word-count.js';
+import { normalizeName } from '../../shared/names.js';
 import type { Candidate, DocState } from '../../shared/types.js';
 
 export interface ManualCandidateInput {
@@ -204,7 +205,11 @@ export function parseCandidateCSV(text: string): CSVParseResult {
     rows.push({
       lineNumber: i + 1,
       id: row.candidateid,
-      name: row.fullname,
+      // Roster exports commonly list names as "Last, First Middle" --
+      // normalize so the candidate and sponsor/recommender display the
+      // same "First Last" way as everywhere else in the app, regardless
+      // of which convention the source spreadsheet used.
+      name: normalizeName(row.fullname),
       email: row.email,
       phone: row.phone || '',
       address: row.address || '',
@@ -217,8 +222,8 @@ export function parseCandidateCSV(text: string): CSVParseResult {
       gradDate: row.graduationdate || row.graddate || '',
       chapterKey,
       term: row.term || '2026 FALL',
-      sponsorName: row.sponsor || row.sponsorname || '',
-      recommenderName: row.recommender || row.recommendername || '',
+      sponsorName: normalizeName(row.sponsor || row.sponsorname || ''),
+      recommenderName: normalizeName(row.recommender || row.recommendername || ''),
     });
   }
 

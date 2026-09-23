@@ -1010,6 +1010,17 @@ async function getFile(key) {
   return { body: data, contentType: data.type || "application/octet-stream" };
 }
 
+// shared/names.ts
+function normalizeName(raw) {
+  const clean2 = raw.trim().replace(/\s+/g, " ");
+  const commaIdx = clean2.indexOf(",");
+  if (commaIdx === -1) return clean2;
+  const last = clean2.slice(0, commaIdx).trim();
+  const rest = clean2.slice(commaIdx + 1).trim();
+  if (!last || !rest) return clean2;
+  return `${rest} ${last}`;
+}
+
 // src/lib/candidate-factory.ts
 function makeCandidate(input) {
   const chapter = CHAPTERS[input.chapterKey];
@@ -1172,7 +1183,11 @@ function parseCandidateCSV(text) {
     rows.push({
       lineNumber: i + 1,
       id: row.candidateid,
-      name: row.fullname,
+      // Roster exports commonly list names as "Last, First Middle" --
+      // normalize so the candidate and sponsor/recommender display the
+      // same "First Last" way as everywhere else in the app, regardless
+      // of which convention the source spreadsheet used.
+      name: normalizeName(row.fullname),
       email: row.email,
       phone: row.phone || "",
       address: row.address || "",
@@ -1185,8 +1200,8 @@ function parseCandidateCSV(text) {
       gradDate: row.graduationdate || row.graddate || "",
       chapterKey,
       term: row.term || "2026 FALL",
-      sponsorName: row.sponsor || row.sponsorname || "",
-      recommenderName: row.recommender || row.recommendername || ""
+      sponsorName: normalizeName(row.sponsor || row.sponsorname || ""),
+      recommenderName: normalizeName(row.recommender || row.recommendername || "")
     });
   }
   return { rows, errors };
@@ -1389,10 +1404,8 @@ function parseHeaderBlock(fullText, fields, chapters) {
   }
 }
 function reverseNameToDisplay(raw) {
-  const clean2 = raw.trim().replace(/\s+/g, " ");
-  const [last, rest] = clean2.split(",").map((s) => s.trim());
-  if (!last || !rest) return clean2.startsWith("Bro.") ? clean2 : `Bro. ${clean2}`;
-  return `Bro. ${rest} ${last}`;
+  const normalized = normalizeName(raw);
+  return normalized.startsWith("Bro.") ? normalized : `Bro. ${normalized}`;
 }
 var clean = (s) => s.trim().replace(/\s+/g, " ");
 async function extractLetterTexts(pdfBytes) {
