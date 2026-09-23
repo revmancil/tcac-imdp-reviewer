@@ -204,6 +204,19 @@ export async function updateCandidateDoc(
   return existing;
 }
 
+// Merges arbitrary top-level fields (e.g. essayText, or a sponsor/recommender
+// letter extracted from a freshly-uploaded application) into a candidate's
+// record. Generic on purpose -- narrower than updateCandidateDoc's single-doc
+// shape, since these updates don't correspond to a specific document key.
+export async function updateCandidateFields(id: string, fields: Partial<Candidate>): Promise<Candidate | null> {
+  await ensureReady();
+  const existing = await getCandidate(id);
+  if (!existing) return null;
+  Object.assign(existing, fields);
+  await upsertCandidateRow(existing);
+  return existing;
+}
+
 export async function logAudit(candidateId: string, officerId: string, action: string, detail?: string) {
   await ensureReady();
   await sql`INSERT INTO audit_log (candidate_id, officer_id, action, detail) VALUES (${candidateId}, ${officerId}, ${action}, ${detail || null})`;

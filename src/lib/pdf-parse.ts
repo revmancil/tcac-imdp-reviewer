@@ -206,6 +206,80 @@ function reverseNameToDisplay(raw: string): string {
   return `Bro. ${rest} ${last}`
 }
 
+// ---------------------------------------------------------------------------
+// Sponsor/recommender letter text + essay text -- for the district's
+// 300-word minimum check. Both live inside the reference application's page
+// 5 layout, each introduced by a "Sponsor: <name>" / "Recommender: <name>"
+// heading (see the reference Application.pdf) -- the letter body is
+// everything between its own heading and the next one.
+// ---------------------------------------------------------------------------
+
+export interface ExtractedLetters {
+  sponsorLetter?: string
+  recommenderLetter?: string
+}
+
+const clean = (s: string) => s.trim().replace(/\s+/g, ' ')
+
+export async function extractLetterTexts(pdfBytes: Uint8Array): Promise<ExtractedLetters> {
+  const doc = mupdf.Document.openDocument(pdfBytes, 'application/pdf')
+  const pageCount = doc.countPages()
+  // The letters live on page 5 of the reference layout (index 4). Guard
+  // against shorter applications rather than assuming every upload matches.
+  const pageIndex = 4
+  if (pageIndex >= pageCount) return {}
+
+  const langPath = process.env.TESSERACT_LANG_PATH
+  const worker = await createWorker('eng', 1, langPath ? { langPath, cachePath: langPath, gzip: true } : undefined)
+  try {
+    const png = await renderPageToPNG(doc, pageIndex)
+    const { data } = await worker.recognize(Buffer.from(png))
+    const text = data.text
+
+    const sponsorMatch = text.match(/Sponsor:\s*[^\n]*\n/i)
+    const recommenderMatch = text.match(/Recommender:\s*[^\n]*\n/i)
+
+    const result: ExtractedLetters = {}
+    if (sponsorMatch) {
+      const start = sponsorMatch.index! + sponsorMatch[0].length
+      const end = recommenderMatch ? recommenderMatch.index! : text.length
+      const body = clean(text.slice(start, end))
+      if (body) result.sponsorLetter = body
+    }
+    if (recommenderMatch) {
+      const start = recommenderMatch.index! + recommenderMatch[0].length
+      const body = clean(text.slice(start))
+      if (body) result.recommenderLetter = body
+    }
+    return result
+  } finally {
+    await worker.terminate()
+  }
+}
+
+// Full OCR'd text of every page of a PDF, in reading order -- used for the
+// candidate essay, which (unlike the application) has no other fields worth
+// parsing out of it.
+export async function extractPdfText(pdfBytes: Uint8Array): Promise<string> {
+  const doc = mupdf.Document.openDocument(pdfBytes, 'application/pdf')
+  const pageCount = doc.countPages()
+
+  const langPath = process.env.TESSERACT_LANG_PATH
+  const worker = await createWorker('eng', 1, langPath ? { langPath, cachePath: langPath, gzip: true } : undefined)
+  try {
+    const parts: string[] = []
+    for (let i = 0; i < pageCount; i++) {
+      const png = await renderPageToPNG(doc, i)
+      const { data } = await worker.recognize(Buffer.from(png))
+      const text = data.text.trim()
+      if (text) parts.push(text)
+    }
+    return parts.join('\n\n')
+  } finally {
+    await worker.terminate()
+  }
+}
+
 export async function parseApplicationFields(
   pdfBytes: Uint8Array,
   chapters: Record<string, Chapter>

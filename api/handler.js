@@ -311,6 +311,20 @@ var NAZHIR = {
     letterLocation: "Application PDF \xB7 Section: Recommender (p. 5)",
     letter: "Does the candidate possess the character and moral reputation desired of a member of Alpha Phi Alpha Fraternity, Inc? To my brothers of Alpha Phi Alpha Fraternity, Inc. It is with pride that I submit my recommendation of Nazhir Carter as he pursues membership into our great fraternity. I've had the opportunity to watch Nazhir's growth from a scholarship recipient from my chapters Foundation for his academic excellence in pursuit of his scholastic endeavors, to graduating and becoming a thriving young man with grit, tenacity and passion for serving others in his community. His character and heart for underserved people says to me without any doubt he possess the character and reputation desired of any man seeking membership into our esteemed fraternal organization. Does the candidate possess academic, and leadership qualities desired of a member of Alpha Phi Alpha Fraternity, Inc? Yes, Nazhir is a proud graduate of Prairie View A&M University, where he earned a B.A. in Mass Communications, displaying academic excellence as a Dean's List scholar and being selected to become a member of multiple national honor societies within his area of study. Along with his academic accolades, Nazhir achieved remarkable success as a track and field student athlete, securing three (3) SWAC Championships, representing a high standard of discipline, teamwork, and perseverance. As a professional, Nazhir carries a passion for youth development that is evident through his roles as an Athletic Development Specialist, Youth Coach, and his work with the Texas Legends G League in Frisco, Tx."
   },
+  // OCR'd from the real Essay.pdf on file for this candidate (see
+  // extractPdfText in src/lib/pdf-parse.ts) -- future uploads populate this
+  // field automatically; this one predates that upload path.
+  essayText: `"Why I desire to be an Alpha man and the contributions that I would bring to Alpha Phi Alpha."
+
+It is with great respect and fortitude that I express my sincere interest in becoming a member of Alpha Phi Alpha Fraternity, Inc., an organization that is dedicated to developing leaders, promoting brotherhood and academic excellence, while providing service and advocacy for their communities.
+
+Growing up in The Colony, Texas, the values of humility, integrity, and persistence were instilled in me. That sense of purpose shaped my identity, and today, I seek to align myself with like-minded men who hold themselves to a high standard of scholarly excellence and service. Now, I am a proud 2024 Cum Laude graduate of Prairie View A&M University (PVAMU), where I earned my B.A. in Mass Communications and a minor in Music in the spring of 2024. After leaving PVAMU, I held the position of Academic Enrichment Specialist, with Lewisville Independent School District, where I was responsible for preparing lesson plans that promote engagement and growth for middle school students. This opportunity helped develop my competency in creating curriculum materials, a skill I can leverage when working with youth programs. With my understanding of the organization's commitment to mentoring through programs such as Go to High School, Go to College and Project Alpha, I aspire to integrate myself into supporting these agendas.
+
+My passion for developing our youth extends beyond my background within the academic community. I am currently pursuing an opportunity as a professional track and field athlete, while holding a position as an Athletic Development Specialist and Youth Coach with the Texas Legends G League in Frisco, Tx. Again, this is another platform where I have implemented programs that enhance performance while instilling confidence, leadership, and resilience in young athletes. I envision not only leveraging my skills of program development that connect with youth, but to also support and develop a broader scoped program that promotes health and wellness, both physically and mentally for adults. I have come to notice how Alpha Phi Alpha Fraternity, Inc. has refocused efforts and resources to become a more vocal advocate for health and wellness initiatives. The African American community needs more of our community leaders driving initiatives such as this. Given my network within the track and field space and professional connections with athletic programs, this is an area where I can contribute to the organization and bridge access.
+
+When asked the question, why do I want to be a member of Alpha Phi Alpha Fraternity, Inc., my answer includes examples of legacy, inspiration, and heartfelt support. I was introduced to the organization by way of the examples set by my father, stepfather, and other influential men in my life, men I deeply respect and admire. As a young man, I once asked my father, "What do those letters on your shirt mean?" He replied, "Son, one day when you are ready, you will find out for yourself." That moment left a lasting impression, igniting a curiosity that eventually progressed into intentional action. Eventually, during my senior year of high school, I joined the Alpha Scholars Mentoring Program, sponsored by the Rho Nu Lambda Chapter, in Carrollton, Tx. This experience left a lasting impact on my pursuit of education, providing me with life skills that would help carry me through. In both instances, there were countless Alpha men that I respected that shared common traits: a commitment to excellence, a presence that commands respect, and an ability to lead with conviction. These are qualities I have worked to cultivate within myself through my collegiate, professional, and civic experiences. As I continue to give back through community service, fundraising, and partnerships with organizations like the Karen's Hands Foundation and the NAACP, continuing to align with such efforts illustrates my larger commitment to service, making an impact, and continuing to build upon the legacy that came before me.
+
+I believe I possess the strengths, humility, and drive to grow alongside the distinguished men of Alpha Phi Alpha Fraternity, Inc, and I am committed to refining my weaknesses to become a better servant, leader, and brother. I understand that life will challenge us all but knowing that I could have a brother beside me, and be that brother for someone else, is a powerful source of strength and purpose. To me, brotherhood means loyalty without condition, empathy without judgment, and showing up when it matters most. That is the kind of man I strive to be, and the kind of presence I hope to bring to this esteemed fraternity. Thank you for your time, consideration, and for the opportunity to pursue membership in an organization that represents the very best of who I aspire to become.`,
   checks: {
     gpaMin: { pass: true, value: "3.50 \u2265 2.50" },
     signatures: { pass: true, value: "All required signatures present" },
@@ -807,6 +821,14 @@ async function updateCandidateDoc(id, docKey, doc) {
   await upsertCandidateRow(existing);
   return existing;
 }
+async function updateCandidateFields(id, fields) {
+  await ensureReady();
+  const existing = await getCandidate(id);
+  if (!existing) return null;
+  Object.assign(existing, fields);
+  await upsertCandidateRow(existing);
+  return existing;
+}
 async function logAudit(candidateId, officerId, action, detail) {
   await ensureReady();
   await sql`INSERT INTO audit_log (candidate_id, officer_id, action, detail) VALUES (${candidateId}, ${officerId}, ${action}, ${detail || null})`;
@@ -1264,10 +1286,59 @@ function parseHeaderBlock(fullText, fields, chapters) {
   }
 }
 function reverseNameToDisplay(raw) {
-  const clean = raw.trim().replace(/\s+/g, " ");
-  const [last, rest] = clean.split(",").map((s) => s.trim());
-  if (!last || !rest) return clean.startsWith("Bro.") ? clean : `Bro. ${clean}`;
+  const clean2 = raw.trim().replace(/\s+/g, " ");
+  const [last, rest] = clean2.split(",").map((s) => s.trim());
+  if (!last || !rest) return clean2.startsWith("Bro.") ? clean2 : `Bro. ${clean2}`;
   return `Bro. ${rest} ${last}`;
+}
+var clean = (s) => s.trim().replace(/\s+/g, " ");
+async function extractLetterTexts(pdfBytes) {
+  const doc = mupdf.Document.openDocument(pdfBytes, "application/pdf");
+  const pageCount = doc.countPages();
+  const pageIndex = 4;
+  if (pageIndex >= pageCount) return {};
+  const langPath = process.env.TESSERACT_LANG_PATH;
+  const worker = await createWorker("eng", 1, langPath ? { langPath, cachePath: langPath, gzip: true } : void 0);
+  try {
+    const png = await renderPageToPNG(doc, pageIndex);
+    const { data } = await worker.recognize(Buffer.from(png));
+    const text = data.text;
+    const sponsorMatch = text.match(/Sponsor:\s*[^\n]*\n/i);
+    const recommenderMatch = text.match(/Recommender:\s*[^\n]*\n/i);
+    const result = {};
+    if (sponsorMatch) {
+      const start = sponsorMatch.index + sponsorMatch[0].length;
+      const end = recommenderMatch ? recommenderMatch.index : text.length;
+      const body = clean(text.slice(start, end));
+      if (body) result.sponsorLetter = body;
+    }
+    if (recommenderMatch) {
+      const start = recommenderMatch.index + recommenderMatch[0].length;
+      const body = clean(text.slice(start));
+      if (body) result.recommenderLetter = body;
+    }
+    return result;
+  } finally {
+    await worker.terminate();
+  }
+}
+async function extractPdfText(pdfBytes) {
+  const doc = mupdf.Document.openDocument(pdfBytes, "application/pdf");
+  const pageCount = doc.countPages();
+  const langPath = process.env.TESSERACT_LANG_PATH;
+  const worker = await createWorker("eng", 1, langPath ? { langPath, cachePath: langPath, gzip: true } : void 0);
+  try {
+    const parts = [];
+    for (let i = 0; i < pageCount; i++) {
+      const png = await renderPageToPNG(doc, i);
+      const { data } = await worker.recognize(Buffer.from(png));
+      const text = data.text.trim();
+      if (text) parts.push(text);
+    }
+    return parts.join("\n\n");
+  } finally {
+    await worker.terminate();
+  }
 }
 async function parseApplicationFields(pdfBytes, chapters) {
   const doc = mupdf.Document.openDocument(pdfBytes, "application/pdf");
@@ -1733,7 +1804,8 @@ app.post("/candidates/:id/docs/:docKey", async (c) => {
   const file = form.get("file");
   if (!(file instanceof File)) return c.json({ error: "No file provided" }, 400);
   if (file.size > 25 * 1024 * 1024) return c.json({ error: "File exceeds 25 MB limit" }, 413);
-  let bytes = await file.arrayBuffer();
+  const originalBytes = await file.arrayBuffer();
+  let bytes = originalBytes;
   let contentType = file.type || "application/octet-stream";
   let redactedCount = 0;
   if (contentType === "application/pdf") {
@@ -1755,7 +1827,24 @@ app.post("/candidates/:id/docs/:docKey", async (c) => {
     file: `/api/files/${key}`,
     uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
-  const updated = await updateCandidateDoc(id, docKey, doc);
+  let updated = await updateCandidateDoc(id, docKey, doc);
+  if (contentType === "application/pdf" && updated) {
+    const current = updated;
+    try {
+      if (docKey === "application") {
+        const { sponsorLetter, recommenderLetter } = await extractLetterTexts(new Uint8Array(originalBytes));
+        const fields = {};
+        if (sponsorLetter && current.sponsor) fields.sponsor = { ...current.sponsor, letter: sponsorLetter };
+        if (recommenderLetter && current.recommender) fields.recommender = { ...current.recommender, letter: recommenderLetter };
+        if (Object.keys(fields).length) updated = await updateCandidateFields(id, fields) || updated;
+      } else if (docKey === "essay") {
+        const essayText = await extractPdfText(new Uint8Array(originalBytes));
+        if (essayText.trim()) updated = await updateCandidateFields(id, { essayText }) || updated;
+      }
+    } catch (err) {
+      console.error("Letter/essay text extraction failed", err);
+    }
+  }
   await logAudit(
     id,
     officer.id,

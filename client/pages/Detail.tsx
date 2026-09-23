@@ -3,8 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Avatar, DocStateDot, Icon, StatusPill } from '../components/Brand'
 import { useApp } from '../context'
 import { api } from '../api'
-import { DocContent } from './DocContent'
+import { DocContent, mockEssayParagraphs } from './DocContent'
 import { requiredDocsFor } from '../../shared/reference'
+import { countWords, MIN_ESSAY_WORDS } from '../../shared/word-count'
 import type { Brother, Candidate, DocState } from '../../shared/types'
 
 export default function Detail() {
@@ -322,6 +323,7 @@ function DocPreview({
               <a href={doc.file} target="_blank" rel="noopener" className="tool-btn"><Icon name="download" size={13} /> Open in New Tab</a>
             </div>
           </div>
+          {docKey === 'essay' && <EssayWordCount candidate={candidate} />}
           {docKey === 'headshot' ? (
             <div className="headshot-page">
               <div className="headshot-frame">
@@ -341,6 +343,7 @@ function DocPreview({
 
   return (
     <div className="doc-canvas">
+      {docKey === 'essay' && <EssayWordCount candidate={candidate} />}
       <div className="doc-page">
         <DocContent docKey={docKey} candidate={candidate} chapter={chapter} />
         {doc.note && <div className="doc-flag-annot"><Icon name="warn" size={14} /><span>Auto-flag: {doc.note}</span></div>}
@@ -411,9 +414,26 @@ function UploadDropzone({
   )
 }
 
+function EssayWordCount({ candidate }: { candidate: Candidate }) {
+  const source = candidate.essayText ?? (candidate.docs.essay?.file ? null : mockEssayParagraphs(candidate).join(' '))
+  if (source === null) {
+    return <div className="doc-flag-annot doc-flag-inline"><Icon name="clock" size={14} /><span>Word count pending — re-upload the essay to compute it</span></div>
+  }
+  const words = countWords(source)
+  const meetsMin = words >= MIN_ESSAY_WORDS
+  return (
+    <div className={`doc-flag-annot doc-flag-inline ${meetsMin ? 'doc-flag-ok' : ''}`}>
+      <Icon name={meetsMin ? 'check' : 'warn'} size={14} />
+      <span>{words} words {meetsMin ? `· meets ${MIN_ESSAY_WORDS}-word minimum` : `· below ${MIN_ESSAY_WORDS}-word minimum`}</span>
+    </div>
+  )
+}
+
 function SponsorCard({ role, brother, hasApplication, onReadLetter, onShowLetterText }: { role: string; brother: Brother; hasApplication: boolean; onReadLetter: () => void; onShowLetterText: () => void }) {
   const initials = brother.name.split(' ').filter((w) => w.length > 1 && !w.endsWith('.')).slice(-2).map((w) => w[0]).join('')
   const state = hasApplication ? 'valid' : 'missing'
+  const words = countWords(brother.letter)
+  const meetsMin = words >= MIN_ESSAY_WORDS
   return (
     <div className={`sponsor-card sponsor-card-${state}`}>
       <div className="sponsor-card-head">
@@ -435,6 +455,11 @@ function SponsorCard({ role, brother, hasApplication, onReadLetter, onShowLetter
           <div className="sponsor-letter-sub">
             {state === 'valid' ? <>Embedded in <b>{brother.letterLocation || 'Application PDF'}</b></> : 'Application PDF not yet uploaded — letter cannot be surfaced'}
           </div>
+          {brother.letter && (
+            <div className={`sponsor-letter-wordcount ${meetsMin ? 'wordcount-ok' : 'wordcount-warn'}`}>
+              {words} words {meetsMin ? `· meets ${MIN_ESSAY_WORDS}-word minimum` : `· below ${MIN_ESSAY_WORDS}-word minimum`}
+            </div>
+          )}
         </div>
         {state === 'valid' && brother.letter && (
           <button className="sponsor-letter-btn sponsor-letter-btn-alt" onClick={onShowLetterText}>Preview <Icon name="chevron-right" size={12} /></button>
@@ -446,6 +471,8 @@ function SponsorCard({ role, brother, hasApplication, onReadLetter, onShowLetter
 }
 
 function LetterTextOverlay({ role, brother, onClose }: { role: string; brother: Brother; onClose: () => void }) {
+  const words = countWords(brother.letter)
+  const meetsMin = words >= MIN_ESSAY_WORDS
   return (
     <div className="letter-overlay-backdrop" onClick={onClose}>
       <div className="letter-overlay" onClick={(e) => e.stopPropagation()}>
@@ -454,6 +481,9 @@ function LetterTextOverlay({ role, brother, onClose }: { role: string; brother: 
             <div className="letter-overlay-eyebrow">Parsed from Application · Section: {role}</div>
             <div className="letter-overlay-title">{role === 'Sponsor' ? 'Letter of Sponsorship' : 'Letter of Recommendation'}</div>
             <div className="letter-overlay-sub">{brother.name} · {brother.chapter} · {brother.role}</div>
+            <div className={`letter-overlay-wordcount ${meetsMin ? 'wordcount-ok' : 'wordcount-warn'}`}>
+              {words} words {meetsMin ? `· meets ${MIN_ESSAY_WORDS}-word minimum` : `· below ${MIN_ESSAY_WORDS}-word minimum`}
+            </div>
           </div>
           <button className="letter-overlay-close" onClick={onClose} aria-label="Close"><Icon name="x" size={16} /></button>
         </div>

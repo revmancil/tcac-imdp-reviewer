@@ -13,7 +13,7 @@ import {
   officerCanSeeArea,
   getChapter,
 } from '../shared/reference.js'
-import type { OfficerPublic } from '../shared/types.js'
+import type { OfficerPublic, Candidate } from '../shared/types.js'
 import { readSession, setSession, clearSession } from './lib/session.js'
 import {
   listCandidates,
@@ -22,6 +22,7 @@ import {
   insertCandidate,
   insertCandidates,
   updateCandidateDoc,
+  updateCandidateFields,
   logAudit,
   countCredentials,
   getCredentialByOfficerId,
@@ -36,7 +37,7 @@ import { putFile, getFile } from './lib/storage.js'
 import { makeCandidate, parseCandidateCSV, buildCSVTemplate } from './lib/candidate-factory.js'
 import { hashPassword, verifyPassword, randomTempPassword } from './lib/password.js'
 import { OFFICER_EMAILS, MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth.js'
-import { extractHeadshot, parseApplicationFields } from './lib/pdf-parse.js'
+import { extractHeadshot, parseApplicationFields, extractLetterTexts, extractPdfText } from './lib/pdf-parse.js'
 import { redactSensitiveInfo } from './lib/redact.js'
 
 const app = new Hono().basePath('/api')
@@ -474,7 +475,8 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
   if (!(file instanceof File)) return c.json({ error: 'No file provided' }, 400)
   if (file.size > 25 * 1024 * 1024) return c.json({ error: 'File exceeds 25 MB limit' }, 413)
 
-  let bytes = await file.arrayBuffer()
+  const originalBytes = await file.arrayBuffer()
+  let bytes = originalBytes
   let contentType = file.type || 'application/octet-stream'
   let redactedCount = 0
   if (contentType === 'application/pdf') {
@@ -501,7 +503,31 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
     file: `/api/files/${key}`,
     uploadedAt: new Date().toISOString(),
   }
-  const updated = await updateCandidateDoc(id, docKey, doc)
+  let updated = await updateCandidateDoc(id, docKey, doc)
+
+  // Pull the sponsor/recommender letter text (from the application) or the
+  // essay text out for the 300-word minimum check. Runs off the original
+  // (pre-redaction) bytes -- best-effort, extracted from whatever layout
+  // this upload actually has; a miss here just means the word count isn't
+  // shown yet, not a blocked upload.
+  if (contentType === 'application/pdf' && updated) {
+    const current = updated
+    try {
+      if (docKey === 'application') {
+        const { sponsorLetter, recommenderLetter } = await extractLetterTexts(new Uint8Array(originalBytes))
+        const fields: Partial<Candidate> = {}
+        if (sponsorLetter && current.sponsor) fields.sponsor = { ...current.sponsor, letter: sponsorLetter }
+        if (recommenderLetter && current.recommender) fields.recommender = { ...current.recommender, letter: recommenderLetter }
+        if (Object.keys(fields).length) updated = (await updateCandidateFields(id, fields)) || updated
+      } else if (docKey === 'essay') {
+        const essayText = await extractPdfText(new Uint8Array(originalBytes))
+        if (essayText.trim()) updated = (await updateCandidateFields(id, { essayText })) || updated
+      }
+    } catch (err) {
+      console.error('Letter/essay text extraction failed', err)
+    }
+  }
+
   await logAudit(
     id,
     officer!.id,

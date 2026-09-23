@@ -132,6 +132,10 @@ export interface Candidate {
   affiliations?: string[];
   awards?: string[];
   employment?: string;
+  // OCR'd text of the candidate's uploaded essay (docs.essay.file), used for
+  // the 300-word minimum check. Absent until a real essay PDF has been
+  // uploaded and successfully parsed.
+  essayText?: string;
 }
 
 export interface CompletenessResult {

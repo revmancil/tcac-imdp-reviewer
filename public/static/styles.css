@@ -1871,6 +1871,13 @@ input, select, textarea { font-family: inherit; }
   margin-top: 4px;
   font-style: italic;
 }
+.letter-overlay-wordcount {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+.letter-overlay-wordcount.wordcount-ok { color: var(--gold); }
+.letter-overlay-wordcount.wordcount-warn { color: var(--warn); }
 .letter-overlay-close {
   background: transparent;
   border: 1px solid var(--gold);
@@ -2045,6 +2052,13 @@ input, select, textarea { font-family: inherit; }
   color: var(--text-2);
   margin-top: 1px;
 }
+.sponsor-letter-wordcount {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.wordcount-ok { color: var(--ok); }
+.wordcount-warn { color: var(--warn); }
 .sponsor-letter-btn {
   display: inline-flex;
   align-items: center;
@@ -2133,6 +2147,11 @@ input, select, textarea { font-family: inherit; }
   border-left: none;
   border-right: none;
   border-bottom: none;
+}
+.doc-flag-ok {
+  background: var(--ok-bg);
+  border-top-color: var(--ok);
+  color: var(--ok);
 }
 
 /* ==========================================================================

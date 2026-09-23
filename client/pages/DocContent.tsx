@@ -4,6 +4,17 @@
 import React from 'react'
 import type { Candidate, Chapter } from '../../shared/types'
 
+// Plain-text source for the mock essay paragraphs below, kept separate from
+// the JSX so the word count can be computed from the exact same content
+// that's rendered (for candidates with no real essay PDF on file).
+export function mockEssayParagraphs(candidate: Candidate): string[] {
+  return [
+    `My path toward Alpha Phi Alpha began long before I could articulate what the light of the Sphinx represents. It began at home, where I was taught that the measure of a man is not what he accumulates, but what he restores to others.`,
+    `At ${candidate.school}, I have tried to live that lesson in small, disciplined ways. Through ${candidate.major.toLowerCase()}, I have found the tools to examine questions that matter to my community — questions about opportunity, mobility, and how institutions either open or foreclose futures for young Black men.`,
+    `To seek membership in Alpha Phi Alpha is not to seek an accolade. It is to accept a discipline — to be first of all, servants of all, and to transcend the smaller versions of ourselves that comfort would allow.`,
+  ]
+}
+
 export function Field({ label, value, full }: { label: string; value: React.ReactNode; full?: boolean }) {
   return (
     <div className={`pf ${full ? 'pf-full' : ''}`}>
@@ -195,15 +206,7 @@ export function DocContent({ docKey, candidate, chapter }: { docKey: string; can
           <div className="statement-head">PERSONAL ESSAY</div>
           <div className="statement-sub">"Why I desire to be an Alpha man and the contributions that I would bring…"</div>
           <div className="paper-hr" />
-          <p>
-            My path toward Alpha Phi Alpha began long before I could articulate what the light of the Sphinx represents. It began at home, where I was taught that the measure of a man is not what he accumulates, but what he restores to others.
-          </p>
-          <p>
-            At {candidate.school}, I have tried to live that lesson in small, disciplined ways. Through {candidate.major.toLowerCase()}, I have found the tools to examine questions that matter to my community — questions about opportunity, mobility, and how institutions either open or foreclose futures for young Black men.
-          </p>
-          <p>
-            To seek membership in Alpha Phi Alpha is not to seek an accolade. It is to accept a discipline — to be first of all, servants of all, and to transcend the smaller versions of ourselves that comfort would allow.
-          </p>
+          {mockEssayParagraphs(candidate).map((p, i) => <p key={i}>{p}</p>)}
           <div className="statement-sign">— {candidate.name}</div>
         </div>
       )
