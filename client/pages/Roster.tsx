@@ -221,7 +221,7 @@ export default function Roster() {
           <tbody>
             {filtered.map((c) => {
               const comp = completeness(c)
-              const flags = [c.checks.gpaMin, c.checks.signatures, c.checks.dates].filter((x) => x.pass === false).length
+              const flags = [c.chapterType === 'collegiate' ? c.checks.gpaMin : null, c.checks.signatures, c.checks.dates].filter((x) => x?.pass === false).length
                 + (c.checks.sponsorRecommender.state === 'warn' || c.checks.sponsorRecommender.state === 'flag' ? 1 : 0)
               const ch = reference.chapters[c.chapterKey]
               return (

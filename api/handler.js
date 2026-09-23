@@ -1220,7 +1220,11 @@ function makeCandidate(input) {
     sponsor,
     recommender,
     checks: {
-      gpaMin: { pass: gpa > 2.5, value: gpa > 2.5 ? `${gpa.toFixed(2)} > 2.50` : `${gpa.toFixed(2)} does not exceed the 2.50 minimum` },
+      // The 2.50 GPA minimum is a collegiate-membership requirement -- alumni
+      // candidates aren't enrolled students and don't have a GPA to hold to
+      // it, so this always passes for them rather than flagging on
+      // whatever (usually blank/zero) value happens to be on file.
+      gpaMin: chapter?.type === "alumni" ? { pass: true, value: "Not applicable \u2014 alumni candidates are not subject to the GPA requirement" } : { pass: gpa > 2.5, value: gpa > 2.5 ? `${gpa.toFixed(2)} > 2.50` : `${gpa.toFixed(2)} does not exceed the 2.50 minimum` },
       signatures: { pass: null, value: "Awaiting document upload" },
       dates: { pass: null, value: "Awaiting document upload" },
       sponsorRecommender: computeSponsorRecommenderCheck(sponsor, recommender)

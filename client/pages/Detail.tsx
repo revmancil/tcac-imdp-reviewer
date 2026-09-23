@@ -180,7 +180,9 @@ export default function Detail() {
         <div className="checkstrip-title">Automated Review</div>
         <div className="checkstrip-items">
           <CheckItem label="Doc Completeness" pass={comp.valid === comp.total} value={`${comp.valid}/${comp.total} documents valid`} />
-          <CheckItem label="GPA Minimum (2.50)" pass={candidate.checks.gpaMin.pass} value={candidate.checks.gpaMin.value} />
+          {candidate.chapterType === 'collegiate' && (
+            <CheckItem label="GPA Minimum (2.50)" pass={candidate.checks.gpaMin.pass} value={candidate.checks.gpaMin.value} />
+          )}
           <CheckItem label="Required Signatures" pass={candidate.checks.signatures.pass} value={candidate.checks.signatures.value} />
           <CheckItem label="Date Validity" pass={candidate.checks.dates.pass} value={candidate.checks.dates.value} />
           <CheckItem label="Sponsor & Recommender" state={candidate.checks.sponsorRecommender.state} value={candidate.checks.sponsorRecommender.value} />
