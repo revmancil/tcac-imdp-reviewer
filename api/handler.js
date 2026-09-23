@@ -746,6 +746,13 @@ async function upsertCandidateRow(c, db = sql) {
       data = EXCLUDED.data
   `;
 }
+function withCompleteDocs(docs) {
+  const complete = { ...docs || {} };
+  for (const d of REQUIRED_DOCS) {
+    if (!complete[d.key]) complete[d.key] = { present: false, valid: false, note: null, file: null };
+  }
+  return complete;
+}
 function rowToCandidate(row) {
   const data = JSON.parse(row.data);
   return {
@@ -761,7 +768,8 @@ function rowToCandidate(row) {
     status: statusByKey(row.status_key),
     submitted: row.submitted,
     lastActivity: row.last_activity,
-    isNew: !!row.is_new
+    isNew: !!row.is_new,
+    docs: withCompleteDocs(data.docs)
   };
 }
 var SORT_MAP = {

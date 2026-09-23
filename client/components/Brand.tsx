@@ -73,9 +73,9 @@ export function StatusPill({ status }: { status: StatusDef }) {
   )
 }
 
-export function DocStateDot({ doc }: { doc: DocState }) {
+export function DocStateDot({ doc }: { doc: DocState | undefined }) {
   let color: string, symbol: string
-  if (!doc.present) { color = '#A54428'; symbol = '×' }
+  if (!doc?.present) { color = '#A54428'; symbol = '×' }
   else if (!doc.valid) { color = '#C99A3B'; symbol = '!' }
   else { color = '#5C7A3A'; symbol = '✓' }
   return (

@@ -6,7 +6,7 @@
 
 import postgres from 'postgres';
 import { SEED_CANDIDATES } from '../../shared/seed-candidates.js';
-import { statusByKey } from '../../shared/reference.js';
+import { statusByKey, REQUIRED_DOCS } from '../../shared/reference.js';
 import type { Candidate } from '../../shared/types.js';
 
 // Supabase's pooled connection (port 6543, pgbouncer in transaction mode)
@@ -105,6 +105,20 @@ async function upsertCandidateRow(c: Candidate, db: postgres.Sql<any> | postgres
   `;
 }
 
+// Backfills any document key that's been added to REQUIRED_DOCS since this
+// row was last saved (e.g. enrollmentLetter) -- rows saved under an older
+// schema won't have it in their stored `docs`, and the UI indexes docs by
+// key assuming every required doc is present. Missing keys are added as
+// "not received" rather than left absent so DocStateDot etc. never see
+// undefined.
+function withCompleteDocs(docs: Record<string, Candidate['docs'][string]> | undefined): Candidate['docs'] {
+  const complete = { ...(docs || {}) };
+  for (const d of REQUIRED_DOCS) {
+    if (!complete[d.key]) complete[d.key] = { present: false, valid: false, note: null, file: null };
+  }
+  return complete;
+}
+
 function rowToCandidate(row: Record<string, any>): Candidate {
   const data = JSON.parse(row.data as string);
   return {
@@ -121,6 +135,7 @@ function rowToCandidate(row: Record<string, any>): Candidate {
     submitted: row.submitted,
     lastActivity: row.last_activity,
     isNew: !!row.is_new,
+    docs: withCompleteDocs(data.docs),
   };
 }
 
