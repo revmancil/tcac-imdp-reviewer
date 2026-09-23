@@ -19,6 +19,7 @@ export default function Detail() {
   const [letterOverlay, setLetterOverlay] = useState<{ role: string; brother: Brother } | null>(null)
   const [uploading, setUploading] = useState(false)
   const [flagging, setFlagging] = useState(false)
+  const [togglingFees, setTogglingFees] = useState(false)
 
   const load = () => {
     if (!id) return
@@ -56,6 +57,17 @@ export default function Detail() {
       setCandidate(updated)
     } finally {
       setFlagging(false)
+    }
+  }
+
+  const handleToggleFees = async (paid: boolean) => {
+    if (!id) return
+    setTogglingFees(true)
+    try {
+      const { candidate: updated } = await api.setMembershipFeesPaid(id, paid)
+      setCandidate(updated)
+    } finally {
+      setTogglingFees(false)
     }
   }
 
@@ -160,7 +172,7 @@ export default function Detail() {
         </div>
       )}
 
-      <WorkflowTimeline candidate={candidate} />
+      <WorkflowTimeline candidate={candidate} onToggleFees={handleToggleFees} togglingFees={togglingFees} />
 
       {letterOverlay && <LetterTextOverlay role={letterOverlay.role} brother={letterOverlay.brother} onClose={() => setLetterOverlay(null)} />}
 
@@ -603,7 +615,7 @@ function LetterTextOverlay({ role, brother, onClose }: { role: string; brother: 
   )
 }
 
-function WorkflowTimeline({ candidate }: { candidate: Candidate }) {
+function WorkflowTimeline({ candidate, onToggleFees, togglingFees }: { candidate: Candidate; onToggleFees: (paid: boolean) => void; togglingFees: boolean }) {
   const { reference } = useApp()
   const steps = reference?.workflowSteps || []
   const wf = candidate.workflow || {}
@@ -641,11 +653,35 @@ function WorkflowTimeline({ candidate }: { candidate: Candidate }) {
               <div className="wf-step-body">
                 <div className="wf-step-label">{step.label}</div>
                 {s.value && <div className="wf-step-value">{s.value}</div>}
+                {step.key === 'membershipFees' && (
+                  <FeesToggle paid={s.done} busy={togglingFees} onToggle={onToggleFees} />
+                )}
               </div>
             </div>
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function FeesToggle({ paid, busy, onToggle }: { paid: boolean; busy: boolean; onToggle: (paid: boolean) => void }) {
+  return (
+    <div className="fees-toggle" onClick={(e) => e.stopPropagation()}>
+      <button
+        className={`fees-toggle-btn ${!paid ? 'fees-toggle-btn-active' : ''}`}
+        disabled={busy || !paid}
+        onClick={() => onToggle(false)}
+      >
+        Unpaid
+      </button>
+      <button
+        className={`fees-toggle-btn ${paid ? 'fees-toggle-btn-active' : ''}`}
+        disabled={busy || paid}
+        onClick={() => onToggle(true)}
+      >
+        Paid
+      </button>
     </div>
   )
 }

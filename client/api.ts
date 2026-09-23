@@ -67,6 +67,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ valid, note }),
     }),
+  setMembershipFeesPaid: (candidateId: string, paid: boolean) =>
+    req<{ candidate: Candidate }>(`/api/candidates/${encodeURIComponent(candidateId)}/workflow/membership-fees`, {
+      method: 'POST',
+      body: JSON.stringify({ paid }),
+    }),
   parseApplication: (file: File) => {
     const form = new FormData()
     form.append('file', file)

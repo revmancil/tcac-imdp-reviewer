@@ -1740,6 +1740,30 @@ input, select, textarea { font-family: inherit; }
   letter-spacing: 0.02em;
 }
 
+.fees-toggle {
+  display: inline-flex;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+  width: fit-content;
+}
+.fees-toggle-btn {
+  padding: 3px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  background: #FFF;
+  color: var(--text-2);
+  border: none;
+  border-right: 1px solid var(--line);
+  cursor: pointer;
+}
+.fees-toggle-btn:last-child { border-right: none; }
+.fees-toggle-btn:disabled { cursor: default; }
+.fees-toggle-btn-active { background: var(--ok); color: #FFF; }
+.fees-toggle-btn:first-child.fees-toggle-btn-active { background: var(--danger); }
+
 /* ==========================================================================
    Replace file / replaced banners
    ========================================================================== */

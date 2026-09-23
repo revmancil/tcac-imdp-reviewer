@@ -1584,6 +1584,14 @@ var NEEDS_VERIFICATION_NOTES = {
   medical: "Needs officer verification: must be signed by both the candidate and the physician.",
   nda: "Needs officer verification: must be signed by the candidate, and by a parent/guardian if the candidate is under 18."
 };
+var WORKFLOW_STEP_FOR_DOC = {
+  application: "appSubmitted",
+  essay: "essayReceived",
+  resume: "resumeReceived",
+  medical: "medicalReceived",
+  voter: "voterReceived",
+  transcript: "transcriptReceived"
+};
 app.use("*", cors());
 function secretOf() {
   return process.env.SESSION_SECRET || "dev-secret-tcac-intake-do-not-use-in-real-prod";
@@ -1949,6 +1957,12 @@ app.post("/candidates/:id/docs/:docKey", async (c) => {
     uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
   let updated = await updateCandidateDoc(id, docKey, doc);
+  const workflowStepKey = WORKFLOW_STEP_FOR_DOC[docKey];
+  if (workflowStepKey && updated) {
+    updated = await updateCandidateFields(id, {
+      workflow: { ...updated.workflow, [workflowStepKey]: { ...updated.workflow[workflowStepKey] || {}, done: true } }
+    }) || updated;
+  }
   if (contentType === "application/pdf" && updated) {
     const current = updated;
     try {
@@ -1965,15 +1979,20 @@ app.post("/candidates/:id/docs/:docKey", async (c) => {
           return { name, chapter: "Pending confirmation", role: "Chapter Brother", email: "", phone: "", relationship: `${role} \xB7 Chapter Brother`, letter };
         };
         const sponsor = attachLetter(current.sponsor, sponsorName, sponsorLetter, "Sponsor");
-        if (sponsor) fields.sponsor = sponsor;
         const recommender = attachLetter(current.recommender, recommenderName, recommenderLetter, "Recommender");
-        if (recommender) fields.recommender = recommender;
-        if (feesBalance !== void 0) {
-          fields.workflow = {
-            ...current.workflow,
-            membershipFees: { done: feesBalance === 0, value: `Balance: $${feesBalance.toFixed(2)}` }
-          };
+        const workflowUpdates = {};
+        if (sponsor) {
+          fields.sponsor = sponsor;
+          workflowUpdates.sponsorAssigned = { done: true, value: `${sponsor.name} \xB7 ${countWords(sponsor.letter)} words` };
         }
+        if (recommender) {
+          fields.recommender = recommender;
+          workflowUpdates.recommenderAssigned = { done: true, value: `${recommender.name} \xB7 ${countWords(recommender.letter)} words` };
+        }
+        if (feesBalance !== void 0) {
+          workflowUpdates.membershipFees = { done: feesBalance === 0, value: `Balance: $${feesBalance.toFixed(2)}` };
+        }
+        if (Object.keys(workflowUpdates).length) fields.workflow = { ...current.workflow, ...workflowUpdates };
         if (Object.keys(fields).length) updated = await updateCandidateFields(id, fields) || updated;
       } else if (docKey === "essay") {
         const essayText = await extractPdfText(new Uint8Array(originalBytes));
@@ -2023,6 +2042,25 @@ app.post("/candidates/:id/docs/:docKey/flag", async (c) => {
     body.valid ? "doc_unflag" : "doc_flag",
     body.valid ? `${docKey} cleared by ${officer.name}` : `${docKey} flagged by ${officer.name} \xB7 ${note}`
   );
+  return c.json({ candidate: updated });
+});
+app.post("/candidates/:id/workflow/membership-fees", async (c) => {
+  const officer = await currentOfficer(c);
+  const denied = requireOfficer(c, officer);
+  if (denied) return denied;
+  const { id } = c.req.param();
+  const candidate = await getCandidate(id);
+  if (!candidate) return c.json({ error: "Not found" }, 404);
+  if (!officerCanSeeChapterKey(officer, candidate.chapterKey)) return c.json({ error: "access_denied" }, 403);
+  const body = await c.req.json().catch(() => null);
+  if (!body || typeof body.paid !== "boolean") return c.json({ error: "paid (boolean) is required" }, 400);
+  const updated = await updateCandidateFields(id, {
+    workflow: {
+      ...candidate.workflow,
+      membershipFees: { done: body.paid, value: body.paid ? `Paid \xB7 marked by ${officer.name}` : "Not yet paid" }
+    }
+  });
+  await logAudit(id, officer.id, body.paid ? "fees_paid" : "fees_unpaid", `Membership fees marked ${body.paid ? "paid" : "unpaid"} by ${officer.name}`);
   return c.json({ candidate: updated });
 });
 app.get("/files/*", async (c) => {

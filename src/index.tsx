@@ -54,6 +54,19 @@ const NEEDS_VERIFICATION_NOTES: Record<string, string> = {
   nda: "Needs officer verification: must be signed by the candidate, and by a parent/guardian if the candidate is under 18.",
 }
 
+// Which "Application Workflow" step a given document's upload marks done --
+// "received," not "valid" (a flagged-for-verification doc is still received).
+// Not every REQUIRED_DOCS key has a corresponding workflow step (enrollment
+// letter, NDA, and headshot don't), so this only covers the ones that do.
+const WORKFLOW_STEP_FOR_DOC: Record<string, string> = {
+  application: 'appSubmitted',
+  essay: 'essayReceived',
+  resume: 'resumeReceived',
+  medical: 'medicalReceived',
+  voter: 'voterReceived',
+  transcript: 'transcriptReceived',
+}
+
 app.use('*', cors())
 
 function secretOf(): string {
@@ -525,6 +538,18 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
   }
   let updated = await updateCandidateDoc(id, docKey, doc)
 
+  // The Application Workflow timeline has its own separate "received" flags
+  // per document -- these don't move on their own just because docs.docKey
+  // changed, so every upload that has a matching step marks it done here.
+  // "Received" tracks present, not valid: a doc flagged for signature
+  // verification is still received.
+  const workflowStepKey = WORKFLOW_STEP_FOR_DOC[docKey]
+  if (workflowStepKey && updated) {
+    updated = (await updateCandidateFields(id, {
+      workflow: { ...updated.workflow, [workflowStepKey]: { ...(updated.workflow[workflowStepKey] || {}), done: true } },
+    })) || updated
+  }
+
   // Pull the sponsor/recommender letter text (and, failing that, at least
   // their name) plus the membership fees balance out of the application, or
   // the essay text out of the essay, for the 300-word minimum check and the
@@ -551,15 +576,20 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
           return { name, chapter: 'Pending confirmation', role: 'Chapter Brother', email: '', phone: '', relationship: `${role} · Chapter Brother`, letter }
         }
         const sponsor = attachLetter(current.sponsor, sponsorName, sponsorLetter, 'Sponsor')
-        if (sponsor) fields.sponsor = sponsor
         const recommender = attachLetter(current.recommender, recommenderName, recommenderLetter, 'Recommender')
-        if (recommender) fields.recommender = recommender
-        if (feesBalance !== undefined) {
-          fields.workflow = {
-            ...current.workflow,
-            membershipFees: { done: feesBalance === 0, value: `Balance: $${feesBalance.toFixed(2)}` },
-          }
+        const workflowUpdates: Record<string, { done: boolean; value?: string }> = {}
+        if (sponsor) {
+          fields.sponsor = sponsor
+          workflowUpdates.sponsorAssigned = { done: true, value: `${sponsor.name} · ${countWords(sponsor.letter)} words` }
         }
+        if (recommender) {
+          fields.recommender = recommender
+          workflowUpdates.recommenderAssigned = { done: true, value: `${recommender.name} · ${countWords(recommender.letter)} words` }
+        }
+        if (feesBalance !== undefined) {
+          workflowUpdates.membershipFees = { done: feesBalance === 0, value: `Balance: $${feesBalance.toFixed(2)}` }
+        }
+        if (Object.keys(workflowUpdates).length) fields.workflow = { ...current.workflow, ...workflowUpdates }
         if (Object.keys(fields).length) updated = (await updateCandidateFields(id, fields)) || updated
       } else if (docKey === 'essay') {
         const essayText = await extractPdfText(new Uint8Array(originalBytes))
@@ -630,6 +660,33 @@ app.post('/candidates/:id/docs/:docKey/flag', async (c) => {
     body.valid ? 'doc_unflag' : 'doc_flag',
     body.valid ? `${docKey} cleared by ${officer!.name}` : `${docKey} flagged by ${officer!.name} · ${note}`,
   )
+  return c.json({ candidate: updated })
+})
+
+// Lets an officer directly mark membership fees paid/unpaid, independent of
+// (or overriding) whatever the OCR'd application balance said -- fees can
+// clear through a channel the application PDF doesn't reflect, or the
+// balance line might not have been readable on a given upload.
+app.post('/candidates/:id/workflow/membership-fees', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireOfficer(c, officer)
+  if (denied) return denied
+
+  const { id } = c.req.param()
+  const candidate = await getCandidate(id)
+  if (!candidate) return c.json({ error: 'Not found' }, 404)
+  if (!officerCanSeeChapterKey(officer, candidate.chapterKey)) return c.json({ error: 'access_denied' }, 403)
+
+  const body = await c.req.json().catch(() => null)
+  if (!body || typeof body.paid !== 'boolean') return c.json({ error: 'paid (boolean) is required' }, 400)
+
+  const updated = await updateCandidateFields(id, {
+    workflow: {
+      ...candidate.workflow,
+      membershipFees: { done: body.paid, value: body.paid ? `Paid · marked by ${officer!.name}` : 'Not yet paid' },
+    },
+  })
+  await logAudit(id, officer!.id, body.paid ? 'fees_paid' : 'fees_unpaid', `Membership fees marked ${body.paid ? 'paid' : 'unpaid'} by ${officer!.name}`)
   return c.json({ candidate: updated })
 })
 
