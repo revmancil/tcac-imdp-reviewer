@@ -154,6 +154,15 @@ export interface Candidate {
   // the 300-word minimum check. Absent until a real essay PDF has been
   // uploaded and successfully parsed.
   essayText?: string;
+  // Reviewer Notes posted from the Detail page -- oldest first. Absent (not
+  // an empty array) on candidates created before this existed.
+  notes?: NoteEntry[];
+}
+
+export interface NoteEntry {
+  author: string;
+  text: string;
+  createdAt: string;
 }
 
 export interface CompletenessResult {

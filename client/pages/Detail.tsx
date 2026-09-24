@@ -20,6 +20,8 @@ export default function Detail() {
   const [uploading, setUploading] = useState(false)
   const [flagging, setFlagging] = useState(false)
   const [togglingFees, setTogglingFees] = useState(false)
+  const [noteText, setNoteText] = useState('')
+  const [postingNote, setPostingNote] = useState(false)
 
   const load = () => {
     if (!id) return
@@ -68,6 +70,18 @@ export default function Detail() {
       setCandidate(updated)
     } finally {
       setTogglingFees(false)
+    }
+  }
+
+  const handlePostNote = async () => {
+    if (!id || !noteText.trim()) return
+    setPostingNote(true)
+    try {
+      const { candidate: updated } = await api.postNote(id, noteText.trim())
+      setCandidate(updated)
+      setNoteText('')
+    } finally {
+      setPostingNote(false)
     }
   }
 
@@ -246,22 +260,41 @@ export default function Detail() {
           <div className="checklist-section">
             <div className="section-title">Reviewer Notes</div>
             <div className="notes-body">
-              <div className="note-item">
-                <div className="note-head">
-                  <span className="note-author">{candidate.reviewer}</span>
-                  <span className="note-time">{candidate.lastActivity}</span>
+              {candidate.notes && candidate.notes.length > 0 ? (
+                candidate.notes.map((n, i) => (
+                  <div className="note-item" key={i}>
+                    <div className="note-head">
+                      <span className="note-author">{n.author}</span>
+                      <span className="note-time">{new Date(n.createdAt).toLocaleString()}</span>
+                    </div>
+                    <div className="note-text">{n.text}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="note-item">
+                  <div className="note-head">
+                    <span className="note-author">{candidate.reviewer}</span>
+                    <span className="note-time">{candidate.lastActivity}</span>
+                  </div>
+                  <div className="note-text">
+                    {candidate.status.key === 'cleared' && 'All materials verified. Recommended to advance to the intake process.'}
+                    {candidate.status.key === 'complete' && 'Documents complete. Awaiting committee sign-off.'}
+                    {candidate.status.key === 'missing' && 'Follow up with candidate re: outstanding items flagged above.'}
+                    {candidate.status.key === 'review' && 'Documents received, working through completeness pass.'}
+                    {candidate.status.key === 'received' && 'New application in queue for initial review.'}
+                  </div>
                 </div>
-                <div className="note-text">
-                  {candidate.status.key === 'cleared' && 'All materials verified. Recommended to advance to the intake process.'}
-                  {candidate.status.key === 'complete' && 'Documents complete. Awaiting committee sign-off.'}
-                  {candidate.status.key === 'missing' && 'Follow up with candidate re: outstanding items flagged above.'}
-                  {candidate.status.key === 'review' && 'Documents received, working through completeness pass.'}
-                  {candidate.status.key === 'received' && 'New application in queue for initial review.'}
-                </div>
-              </div>
+              )}
             </div>
-            <textarea className="note-input" placeholder="Add a note for the committee…" />
-            <button className="btn-primary sm full"><Icon name="send" size={13} /> Post Note</button>
+            <textarea
+              className="note-input"
+              placeholder="Add a note for the committee…"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+            />
+            <button className="btn-primary sm full" disabled={postingNote || !noteText.trim()} onClick={handlePostNote}>
+              <Icon name="send" size={13} /> {postingNote ? 'Posting…' : 'Post Note'}
+            </button>
           </div>
 
           <div className="checklist-section">

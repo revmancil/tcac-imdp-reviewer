@@ -79,6 +79,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ paid }),
     }),
+  postNote: (candidateId: string, text: string) =>
+    req<{ candidate: Candidate }>(`/api/candidates/${encodeURIComponent(candidateId)}/notes`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
   parseApplication: (file: File) => {
     const form = new FormData()
     form.append('file', file)

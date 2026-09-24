@@ -644,6 +644,28 @@ app.get('/candidates/:id', async (c) => {
   return c.json({ candidate })
 })
 
+app.post('/candidates/:id/notes', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireOfficer(c, officer)
+  if (denied) return denied
+
+  const candidate = await getCandidate(c.req.param('id'))
+  if (!candidate) return c.json({ error: 'Not found' }, 404)
+  if (!officerCanSeeChapterKey(officer, candidate.chapterKey)) {
+    return c.json({ error: 'That candidate is outside your area of responsibility.' }, 403)
+  }
+
+  const body = await c.req.json<{ text?: string }>().catch(() => ({}) as { text?: string })
+  const text = (body.text || '').trim()
+  if (!text) return c.json({ error: 'Note text is required.' }, 422)
+
+  const notes = [...(candidate.notes || []), { author: officer!.name, text, createdAt: new Date().toISOString() }]
+  const updated = await updateCandidateFields(candidate.id, { notes, lastActivity: new Date().toISOString().slice(0, 10) })
+  await logAudit(candidate.id, officer!.id, 'note', `${officer!.name} posted a reviewer note`)
+
+  return c.json({ candidate: updated })
+})
+
 app.post('/candidates/:id/docs/:docKey', async (c) => {
   const officer = await currentOfficer(c)
   const denied = requireOfficer(c, officer)
