@@ -1758,27 +1758,87 @@ async function sendEmail(input) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
-var WRAP = (body) => `
-  <div style="font-family: -apple-system, Segoe UI, Arial, sans-serif; color: #1a1a1a; max-width: 520px;">
-    ${body}
-    <p style="margin-top: 24px; font-size: 12px; color: #888;">TCAC Intake Review Tool \u2014 Texas Council of Alpha Chapters</p>
-  </div>
-`;
-function tempPasswordEmailHtml(officerName, tempPassword) {
-  return WRAP(`
-    <p>Hi ${officerName},</p>
-    <p>A temporary password has been issued for your TCAC Intake Review Tool account:</p>
-    <p style="font-family: monospace; font-size: 18px; background: #f4f4f4; padding: 10px 14px; border-radius: 4px; display: inline-block;">${tempPassword}</p>
-    <p>You'll be asked to set a new password the first time you sign in with it.</p>
-    <p>If you weren't expecting this, contact your District Administrator.</p>
-  `);
+var GOLD = "#C99A3B";
+var GOLD_LIGHT = "#E5C46A";
+var INK = "#0E0E0E";
+var CREAM = "#F5EBD6";
+var CREAM_3 = "#F9F3E0";
+var STATUS_TONE_COLORS = {
+  neutral: { bg: "#F5EBD6", fg: "#5C4A22", bd: "#D9C79A" },
+  info: { bg: "#EDE3CE", fg: "#3B3222", bd: "#C99A3B" },
+  warn: { bg: "#F5E4C2", fg: "#7A4A0F", bd: "#B37516" },
+  ok: { bg: "#E5EBDD", fg: "#3A4A25", bd: "#8AA365" },
+  gold: { bg: "#0E0E0E", fg: "#EBC66A", bd: "#C99A3B" }
+};
+function statusBadge(label, tone) {
+  const c = STATUS_TONE_COLORS[tone] || STATUS_TONE_COLORS.neutral;
+  return `<span style="display: inline-block; font-family: Georgia, 'Times New Roman', serif; font-size: 13px; font-weight: bold; letter-spacing: 0.04em; text-transform: uppercase; color: ${c.fg}; background: ${c.bg}; border: 1px solid ${c.bd}; border-radius: 2px; padding: 4px 10px;">${label}</span>`;
 }
-function statusChangeEmailHtml(candidateName, candidateId, fromLabel, toLabel, changedBy) {
-  return WRAP(`
-    <p>Candidate <b>${candidateName}</b> (#${candidateId}) changed status:</p>
-    <p style="font-size: 16px;">${fromLabel} \u2192 <b>${toLabel}</b></p>
-    <p>Changed by ${changedBy}.</p>
-  `);
+function emailShell(preheader, bodyHtml) {
+  return `
+<!DOCTYPE html>
+<html>
+  <body style="margin: 0; padding: 24px 12px; background: ${CREAM}; font-family: Georgia, 'Times New Roman', serif;">
+    <span style="display: none; max-height: 0; overflow: hidden;">${preheader}</span>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 560px; margin: 0 auto; border-collapse: collapse;">
+      <tr>
+        <td style="background: ${INK}; border: 1px solid ${GOLD}; border-bottom: none; padding: 22px 28px; border-radius: 2px 2px 0 0;">
+          <div style="font-family: Arial, Helvetica, sans-serif; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: ${GOLD}; margin-bottom: 4px;">
+            Texas Council of Alpha Chapters
+          </div>
+          <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 22px; color: ${CREAM}; font-style: italic;">
+            TCAC Intake Review Tool
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="height: 3px; background: ${GOLD}; font-size: 0; line-height: 0;">&nbsp;</td>
+      </tr>
+      <tr>
+        <td style="background: ${CREAM_3}; border: 1px solid ${GOLD}; border-top: none; border-bottom: none; padding: 28px; font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.6; color: #2A2620;">
+          ${bodyHtml}
+        </td>
+      </tr>
+      <tr>
+        <td style="background: ${INK}; border: 1px solid ${GOLD}; border-top: none; padding: 14px 28px; border-radius: 0 0 2px 2px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #A08A5A;">
+          TCAC Intake Review Tool \u2014 an internal tool for TCAC officers.
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`;
+}
+function tempPasswordEmailHtml(officerName, tempPassword) {
+  return emailShell(
+    `Your temporary password: ${tempPassword}`,
+    `
+      <p style="margin: 0 0 16px;">Hi ${officerName},</p>
+      <p style="margin: 0 0 16px;">A temporary password has been issued for your TCAC Intake Review Tool account:</p>
+      <p style="margin: 0 0 20px;">
+        <span style="display: inline-block; font-family: 'Courier New', monospace; font-size: 20px; letter-spacing: 0.06em; color: ${GOLD_LIGHT}; background: ${INK}; border: 1px solid ${GOLD}; border-radius: 2px; padding: 10px 18px;">${tempPassword}</span>
+      </p>
+      <p style="margin: 0 0 16px;">You'll be asked to set a new password the first time you sign in with it.</p>
+      <p style="margin: 0; font-size: 13px; color: #6b5f4a;">If you weren't expecting this, contact your District Administrator.</p>
+    `
+  );
+}
+function statusChangeEmailHtml(candidateName, candidateId, fromLabel, toLabel, toTone, changedBy) {
+  return emailShell(
+    `${candidateName} moved to ${toLabel}`,
+    `
+      <p style="margin: 0 0 4px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #8a7a52;">Candidate Status Update</p>
+      <p style="margin: 0 0 18px; font-size: 19px; font-weight: bold; color: ${INK};">${candidateName} <span style="font-weight: normal; color: #6b5f4a;">#${candidateId}</span></p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 20px;">
+        <tr>
+          <td style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #6b5f4a; padding-right: 12px;">${fromLabel}</td>
+          <td style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #6b5f4a; padding-right: 12px;">\u2192</td>
+          <td>${statusBadge(toLabel, toTone)}</td>
+        </tr>
+      </table>
+      <p style="margin: 0; font-size: 13px; color: #6b5f4a;">Changed by ${changedBy}.</p>
+    `
+  );
 }
 
 // src/index.tsx
@@ -2287,7 +2347,7 @@ app.post("/candidates/:id/status/apply-recommendation", async (c) => {
     await sendEmail({
       to: emails,
       subject: `TCAC Intake: ${updated.name} moved to ${updated.status.label}`,
-      html: statusChangeEmailHtml(updated.name, updated.id, previousStatus.label, updated.status.label, officer.name)
+      html: statusChangeEmailHtml(updated.name, updated.id, previousStatus.label, updated.status.label, updated.status.tone, officer.name)
     });
   }
   return c.json({ candidate: updated });

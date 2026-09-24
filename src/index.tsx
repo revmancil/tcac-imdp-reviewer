@@ -713,7 +713,7 @@ app.post('/candidates/:id/status/apply-recommendation', async (c) => {
     await sendEmail({
       to: emails,
       subject: `TCAC Intake: ${updated.name} moved to ${updated.status.label}`,
-      html: statusChangeEmailHtml(updated.name, updated.id, previousStatus.label, updated.status.label, officer!.name),
+      html: statusChangeEmailHtml(updated.name, updated.id, previousStatus.label, updated.status.label, updated.status.tone, officer!.name),
     })
   }
 
