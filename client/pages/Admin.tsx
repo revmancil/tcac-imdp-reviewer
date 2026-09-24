@@ -18,7 +18,7 @@ export default function Admin() {
   const [rows, setRows] = useState<AdminOfficerRow[] | null>(null)
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [issued, setIssued] = useState<{ officerId: string; email: string; tempPassword: string } | null>(null)
+  const [issued, setIssued] = useState<{ officerId: string; email: string; tempPassword: string; emailSent: boolean } | null>(null)
   const [clearOpen, setClearOpen] = useState(false)
   const [clearConfirmText, setClearConfirmText] = useState('')
   const [clearing, setClearing] = useState(false)
@@ -196,7 +196,10 @@ export default function Admin() {
             <code style={{ fontFamily: "'JetBrains Mono', monospace", background: '#0E0E0E', color: '#EBC66A', padding: '2px 8px', borderRadius: 2 }}>
               {issued.tempPassword}
             </code>{' '}
-            — relay this to the officer directly (phone/text/in person). They'll be required to set a new password on next sign-in.
+            {issued.emailSent
+              ? `— also emailed to ${issued.email}.`
+              : '— email could not be sent (Resend not configured or the send failed); relay this to the officer directly (phone/text/in person).'}
+            {' '}They'll be required to set a new password on next sign-in.
             <button className="letter-overlay-close" style={{ marginLeft: 12, width: 22, height: 22 }} onClick={() => setIssued(null)} aria-label="Dismiss">
               <Icon name="x" size={12} />
             </button>

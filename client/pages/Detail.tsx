@@ -22,6 +22,7 @@ export default function Detail() {
   const [togglingFees, setTogglingFees] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [postingNote, setPostingNote] = useState(false)
+  const [applyingStatus, setApplyingStatus] = useState(false)
 
   const load = () => {
     if (!id) return
@@ -82,6 +83,17 @@ export default function Detail() {
       setNoteText('')
     } finally {
       setPostingNote(false)
+    }
+  }
+
+  const handleApplyRecommendedStatus = async () => {
+    if (!id) return
+    setApplyingStatus(true)
+    try {
+      const { candidate: updated } = await api.applyRecommendedStatus(id)
+      setCandidate(updated)
+    } finally {
+      setApplyingStatus(false)
     }
   }
 
@@ -156,6 +168,14 @@ export default function Detail() {
         </div>
         <div className="detail-header-right">
           <StatusPill status={candidate.status} />
+          {candidate.recommendedStatus.key !== candidate.status.key && (
+            <div className="scope-banner" style={{ marginTop: 6, alignItems: 'center' }}>
+              <span>Recommended: <StatusPill status={candidate.recommendedStatus} /></span>
+              <button className="btn-secondary sm" disabled={applyingStatus} onClick={handleApplyRecommendedStatus}>
+                {applyingStatus ? 'Applying…' : 'Apply'}
+              </button>
+            </div>
+          )}
           <div className="detail-actions">
             <button className="btn-secondary sm"><Icon name="mail" size={13} /> Request Docs</button>
             <button className="btn-primary sm"><Icon name="check" size={13} /> Mark Complete</button>

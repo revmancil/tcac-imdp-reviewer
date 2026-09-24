@@ -230,3 +230,39 @@ export function getChapter(chapterKey: string): Chapter {
     }
   );
 }
+
+// Derives what a candidate's status *should* be from the same signals
+// already shown on the Detail page (doc completeness, the Automated Review
+// checks, and the DD/RVP + HQ approval workflow steps) -- this is a
+// recommendation an officer reviews and applies, never written
+// automatically, since "Cleared for Intake" has real consequences.
+export function computeRecommendedStatus(c: {
+  chapterType: ChapterType;
+  docs: Record<string, { present: boolean; valid: boolean }>;
+  checks: {
+    gpaMin: { pass: boolean | null };
+    signatures: { pass: boolean | null };
+    dates: { pass: boolean | null };
+    sponsorRecommender: { state: string };
+  };
+  workflow: Record<string, { done: boolean }>;
+}): StatusDef {
+  const applicable = requiredDocsFor(c.chapterType);
+  const anyPresent = applicable.some((d) => c.docs[d.key]?.present);
+  if (!anyPresent) return STATUS.RECEIVED;
+
+  const allValid = applicable.every((d) => c.docs[d.key]?.present && c.docs[d.key]?.valid);
+  const anyFlagged = applicable.some((d) => c.docs[d.key]?.present && c.docs[d.key]?.valid === false);
+  const checksFail =
+    c.checks.gpaMin.pass === false ||
+    c.checks.signatures.pass === false ||
+    c.checks.dates.pass === false ||
+    c.checks.sponsorRecommender.state === 'flag';
+
+  if (allValid && !checksFail) {
+    const approved = !!c.workflow.ddApproval?.done && !!c.workflow.hqApproval?.done;
+    return approved ? STATUS.CLEARED : STATUS.COMPLETE;
+  }
+  if (checksFail || anyFlagged) return STATUS.MISSING;
+  return STATUS.REVIEW;
+}

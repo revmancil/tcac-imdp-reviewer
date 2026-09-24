@@ -6,7 +6,7 @@
 
 import postgres from 'postgres';
 import { SEED_CANDIDATES } from '../../shared/seed-candidates.js';
-import { statusByKey, REQUIRED_DOCS, OFFICERS } from '../../shared/reference.js';
+import { statusByKey, REQUIRED_DOCS, OFFICERS, computeRecommendedStatus } from '../../shared/reference.js';
 import { computeSponsorRecommenderCheck } from '../../shared/word-count.js';
 import { OFFICER_EMAILS } from './auth.js';
 import type { Candidate, OfficerPublic } from '../../shared/types.js';
@@ -155,6 +155,17 @@ function withCompleteDocs(docs: Record<string, Candidate['docs'][string]> | unde
 
 function rowToCandidate(row: Record<string, any>): Candidate {
   const data = JSON.parse(row.data as string);
+  const docs = withCompleteDocs(data.docs);
+  // Recomputed on every read rather than trusted from storage -- the
+  // sponsor/recommender letters can change independently of when this
+  // check was last saved (e.g. a letter gets extracted from a later
+  // application upload), so a stored value would go stale.
+  const checks = {
+    ...data.checks,
+    sponsorRecommender: computeSponsorRecommenderCheck(data.sponsor ?? null, data.recommender ?? null),
+  };
+  const workflow = data.workflow ?? {};
+
   return {
     ...data,
     id: row.id,
@@ -169,15 +180,11 @@ function rowToCandidate(row: Record<string, any>): Candidate {
     submitted: row.submitted,
     lastActivity: row.last_activity,
     isNew: !!row.is_new,
-    docs: withCompleteDocs(data.docs),
-    // Recomputed on every read rather than trusted from storage -- the
-    // sponsor/recommender letters can change independently of when this
-    // check was last saved (e.g. a letter gets extracted from a later
-    // application upload), so a stored value would go stale.
-    checks: {
-      ...data.checks,
-      sponsorRecommender: computeSponsorRecommenderCheck(data.sponsor ?? null, data.recommender ?? null),
-    },
+    docs,
+    checks,
+    // Also recomputed on every read, from the same signals shown in the
+    // Detail page's Automated Review strip -- see computeRecommendedStatus.
+    recommendedStatus: computeRecommendedStatus({ chapterType: row.chapter_type, docs, checks, workflow }),
   };
 }
 

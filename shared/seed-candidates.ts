@@ -76,7 +76,7 @@ const NAZHIR: Candidate = {
   lastUpdated: '2025-11-14',
   lastActivity: '2026-07-28',
   term: '2025 FALL',
-  status: STATUS.REVIEW,
+  status: STATUS.REVIEW, recommendedStatus: STATUS.REVIEW,
   chapterKey: 'rho-nu-lambda',
   chapterType: 'alumni',
   ddrvpDecision: 'approved-pending-fees',
@@ -194,7 +194,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897041', name: 'Marcus J. Whitfield', school: 'Prairie View A&M University',
     classification: 'Junior', major: 'Political Science', gpa: 3.68,
-    submitted: '2026-07-12', status: STATUS.CLEARED, chapterKey: 'eta-gamma', chapterType: 'collegiate',
+    submitted: '2026-07-12', status: STATUS.CLEARED, recommendedStatus: STATUS.CLEARED, chapterKey: 'eta-gamma', chapterType: 'collegiate',
     sponsor: { name: 'Bro. Christopher Freeman', chapter: 'Delta Sigma Lambda', initDate: 'Spring 1995', role: 'District DoM', email: 'freeman@deltasigmalambda.org', phone: '(713) 555-0401', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Solomon Whitaker', chapter: 'Pi Theta Lambda', initDate: 'Fall 1992', role: 'Historian', email: 'whitaker@kappadeltalambda.org', phone: '(832) 555-0501', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.68 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -203,7 +203,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897042', name: 'Terrell A. Brooks', school: 'Texas Southern University',
     classification: 'Senior', major: 'Finance', gpa: 3.91,
-    submitted: '2026-07-08', status: STATUS.COMPLETE, chapterKey: 'delta-theta', chapterType: 'collegiate',
+    submitted: '2026-07-08', status: STATUS.COMPLETE, recommendedStatus: STATUS.COMPLETE, chapterKey: 'delta-theta', chapterType: 'collegiate',
     sponsor: { name: 'Bro. James O. Randolph', chapter: 'Alpha Sigma Lambda', initDate: 'Spring 2005', role: 'Treasurer', email: 'randolph@sigmalambda.org', phone: '(713) 555-0402', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Dr. Kwame Osei', chapter: 'Alpha Eta Lambda', initDate: 'Spring 1988', role: 'Past District Director', email: 'osei@alphaetalambda.org', phone: '(832) 555-0502', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.91 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -212,7 +212,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897043', name: 'Devon R. Carter', school: 'University of Houston',
     classification: 'Junior', major: 'Computer Science', gpa: 3.24,
-    submitted: '2026-07-15', status: STATUS.MISSING, chapterKey: 'eta-mu', chapterType: 'collegiate',
+    submitted: '2026-07-15', status: STATUS.MISSING, recommendedStatus: STATUS.MISSING, chapterKey: 'eta-mu', chapterType: 'collegiate',
     sponsor: { name: 'Bro. Anthony Reeves', chapter: 'Xi Kappa Lambda', initDate: 'Fall 1994', role: 'Financial Secretary', email: 'reeves@zetakappalambda.org', phone: '(713) 555-0403', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Damon T. Ellsworth', chapter: 'Beta Tau Lambda', initDate: 'Fall 1999', role: 'Chapter President', email: 'ellsworth@piiotalambda.org', phone: '(832) 555-0503', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.24 ≥ 2.50' }, signatures: { pass: false, value: 'Signature verification pending on outstanding documents' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -226,7 +226,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897044', name: 'Jalen M. Simmons', school: 'UT Austin',
     classification: 'Sophomore', major: 'Business Administration', gpa: 2.87,
-    submitted: '2026-07-18', status: STATUS.REVIEW, chapterKey: 'delta-theta', chapterType: 'collegiate',
+    submitted: '2026-07-18', status: STATUS.REVIEW, recommendedStatus: STATUS.REVIEW, chapterKey: 'delta-theta', chapterType: 'collegiate',
     sponsor: { name: 'Bro. Malcolm Prescott', chapter: 'Eta Gamma', initDate: 'Spring 2018', role: 'Chapter Advisor', email: 'prescott@etagamma.org', phone: '(713) 555-0404', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Vernon Ashe', chapter: 'Delta Theta', initDate: 'Fall 2019', role: 'Chapter Advisor', email: 'ashe@zetagamma.org', phone: '(832) 555-0504', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '2.87 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -235,7 +235,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897045', name: 'Isaiah K. Bell', school: 'Texas Tech University',
     classification: 'Junior', major: 'Mechanical Engineering', gpa: 3.45,
-    submitted: '2026-07-20', status: STATUS.MISSING, chapterKey: 'eta-upsilon', chapterType: 'collegiate',
+    submitted: '2026-07-20', status: STATUS.MISSING, recommendedStatus: STATUS.MISSING, chapterKey: 'eta-upsilon', chapterType: 'collegiate',
     sponsor: { name: 'Bro. Dr. Nathaniel Boone', chapter: 'Delta Sigma Lambda', initDate: 'Spring 1985', role: 'Life Member', email: 'boone@deltasigmalambda.org', phone: '(713) 555-0405', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Reginald Hollis', chapter: 'Xi Kappa Lambda', initDate: 'Fall 2001', role: 'Dean of Members', email: 'hollis@zetakappalambda.org', phone: '(832) 555-0505', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.45 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: false, value: 'Medical form dated 2025-11-04 (>6mo old)' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -249,7 +249,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897046', name: 'Andre L. Whitmore', school: 'University of North Texas',
     classification: 'Senior', major: 'History', gpa: 3.72,
-    submitted: '2026-07-05', status: STATUS.CLEARED, chapterKey: 'eta-epsilon', chapterType: 'collegiate',
+    submitted: '2026-07-05', status: STATUS.CLEARED, recommendedStatus: STATUS.CLEARED, chapterKey: 'eta-epsilon', chapterType: 'collegiate',
     sponsor: { name: 'Bro. Marcus D. Alston', chapter: 'Alpha Eta Lambda', initDate: 'Spring 1998', role: 'Chapter President', email: 'alston@alphaetalambda.org', phone: '(713) 555-0406', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Dr. Terrence Baldwin', chapter: 'Gamma Eta Lambda', initDate: 'Fall 1989', role: 'Past Chapter President', email: 'baldwin@iotazetalambda.org', phone: '(832) 555-0506', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.72 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -258,7 +258,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897047', name: 'Cameron D. Prince', school: 'Sam Houston State University',
     classification: 'Junior', major: 'Electrical Engineering', gpa: 2.41,
-    submitted: '2026-07-19', status: STATUS.MISSING, chapterKey: 'theta-mu', chapterType: 'collegiate',
+    submitted: '2026-07-19', status: STATUS.MISSING, recommendedStatus: STATUS.MISSING, chapterKey: 'theta-mu', chapterType: 'collegiate',
     sponsor: { name: 'Bro. Christopher Freeman', chapter: 'Delta Sigma Lambda', initDate: 'Spring 1995', role: 'District DoM', email: 'freeman@deltasigmalambda.org', phone: '(713) 555-0407', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Solomon Whitaker', chapter: 'Pi Theta Lambda', initDate: 'Fall 1992', role: 'Historian', email: 'whitaker@kappadeltalambda.org', phone: '(832) 555-0507', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: false, value: '2.41 < 2.50 minimum' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -273,7 +273,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897048', name: 'Malik R. Overton', school: 'Texas Southern University (2022)',
     classification: 'Alumni (Post-Grad)', major: 'Sociology · Grad 2022', gpa: 3.55,
-    submitted: '2026-07-11', status: STATUS.COMPLETE, chapterKey: 'alpha-eta-lambda', chapterType: 'alumni',
+    submitted: '2026-07-11', status: STATUS.COMPLETE, recommendedStatus: STATUS.COMPLETE, chapterKey: 'alpha-eta-lambda', chapterType: 'alumni',
     sponsor: { name: 'Bro. Christopher Freeman', chapter: 'Delta Sigma Lambda', initDate: 'Spring 1995', role: 'District DoM', email: 'freeman@deltasigmalambda.org', phone: '(713) 555-0412', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Marcus D. Alston', chapter: 'Alpha Eta Lambda', initDate: 'Spring 1998', role: 'Chapter President', email: 'alston@alphaetalambda.org', phone: '(832) 555-0512', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.55 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -282,7 +282,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897049', name: 'Trevor N. Ashford', school: 'UT Austin',
     classification: 'Junior', major: 'Psychology', gpa: 3.12,
-    submitted: '2026-07-22', status: STATUS.REVIEW, chapterKey: 'delta-theta', chapterType: 'collegiate',
+    submitted: '2026-07-22', status: STATUS.REVIEW, recommendedStatus: STATUS.REVIEW, chapterKey: 'delta-theta', chapterType: 'collegiate',
     sponsor: { name: 'Bro. James O. Randolph', chapter: 'Alpha Sigma Lambda', initDate: 'Spring 2005', role: 'Treasurer', email: 'randolph@sigmalambda.org', phone: '(713) 555-0408', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Dr. Kwame Osei', chapter: 'Alpha Eta Lambda', initDate: 'Spring 1988', role: 'Past District Director', email: 'osei@alphaetalambda.org', phone: '(832) 555-0508', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.12 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -291,7 +291,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897050', name: 'Justin E. Broussard', school: 'University of Houston (2023)',
     classification: 'Alumni (Post-Grad)', major: 'Accounting · Grad 2023', gpa: 3.83,
-    submitted: '2026-07-09', status: STATUS.CLEARED, chapterKey: 'xi-kappa-lambda', chapterType: 'alumni',
+    submitted: '2026-07-09', status: STATUS.CLEARED, recommendedStatus: STATUS.CLEARED, chapterKey: 'xi-kappa-lambda', chapterType: 'alumni',
     sponsor: { name: 'Bro. Reginald Hollis', chapter: 'Xi Kappa Lambda', initDate: 'Fall 2001', role: 'Dean of Members', email: 'hollis@zetakappalambda.org', phone: '(713) 555-0413', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. James O. Randolph', chapter: 'Alpha Sigma Lambda', initDate: 'Spring 2005', role: 'Treasurer', email: 'randolph@sigmalambda.org', phone: '(832) 555-0513', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.83 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -300,7 +300,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897051', name: 'Kendrick P. Lyles', school: 'Prairie View A&M University',
     classification: 'Junior', major: 'Biology', gpa: 3.28,
-    submitted: '2026-07-24', status: STATUS.RECEIVED, chapterKey: 'eta-gamma', chapterType: 'collegiate',
+    submitted: '2026-07-24', status: STATUS.RECEIVED, recommendedStatus: STATUS.RECEIVED, chapterKey: 'eta-gamma', chapterType: 'collegiate',
     sponsor: { name: 'Bro. Anthony Reeves', chapter: 'Xi Kappa Lambda', initDate: 'Fall 1994', role: 'Financial Secretary', email: 'reeves@zetakappalambda.org', phone: '(713) 555-0409', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Damon T. Ellsworth', chapter: 'Beta Tau Lambda', initDate: 'Fall 1999', role: 'Chapter President', email: 'ellsworth@piiotalambda.org', phone: '(832) 555-0509', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.28 ≥ 2.50' }, signatures: { pass: null, value: 'Awaiting review' }, dates: { pass: null, value: 'Awaiting review' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -310,7 +310,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897052', name: 'Xavier T. Monroe', school: 'UT Austin (2024)',
     classification: 'Alumni (Post-Grad)', major: 'Chemistry · Grad 2024', gpa: 3.61,
-    submitted: '2026-07-06', status: STATUS.COMPLETE, chapterKey: 'gamma-eta-lambda', chapterType: 'alumni',
+    submitted: '2026-07-06', status: STATUS.COMPLETE, recommendedStatus: STATUS.COMPLETE, chapterKey: 'gamma-eta-lambda', chapterType: 'alumni',
     sponsor: { name: 'Bro. Dr. Terrence Baldwin', chapter: 'Gamma Eta Lambda', initDate: 'Fall 1989', role: 'Past Chapter President', email: 'baldwin@iotazetalambda.org', phone: '(713) 555-0414', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Damon T. Ellsworth', chapter: 'Beta Tau Lambda', initDate: 'Fall 1999', role: 'Chapter President', email: 'ellsworth@piiotalambda.org', phone: '(832) 555-0514', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.61 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -319,7 +319,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897053', name: 'Ronald S. Petit', school: 'Texas Southern University',
     classification: 'Junior', major: 'Pre-Med / Biology', gpa: 3.94,
-    submitted: '2026-07-14', status: STATUS.MISSING, chapterKey: 'delta-theta', chapterType: 'collegiate',
+    submitted: '2026-07-14', status: STATUS.MISSING, recommendedStatus: STATUS.MISSING, chapterKey: 'delta-theta', chapterType: 'collegiate',
     sponsor: { name: 'Bro. Malcolm Prescott', chapter: 'Eta Gamma', initDate: 'Spring 2018', role: 'Chapter Advisor', email: 'prescott@etagamma.org', phone: '(713) 555-0410', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Vernon Ashe', chapter: 'Delta Theta', initDate: 'Fall 2019', role: 'Chapter Advisor', email: 'ashe@zetagamma.org', phone: '(832) 555-0510', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.94 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -334,7 +334,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897054', name: 'Elijah W. Grantham', school: 'Sam Houston State (2025)',
     classification: 'Alumni (Post-Grad)', major: 'Communications · Grad 2025', gpa: 3.05,
-    submitted: '2026-07-25', status: STATUS.RECEIVED, chapterKey: 'pi-theta-lambda', chapterType: 'alumni',
+    submitted: '2026-07-25', status: STATUS.RECEIVED, recommendedStatus: STATUS.RECEIVED, chapterKey: 'pi-theta-lambda', chapterType: 'alumni',
     sponsor: { name: 'Bro. Solomon Whitaker', chapter: 'Pi Theta Lambda', initDate: 'Fall 1992', role: 'Historian', email: 'whitaker@kappadeltalambda.org', phone: '(713) 555-0415', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Vernon Ashe', chapter: 'Delta Theta', initDate: 'Fall 2019', role: 'Chapter Advisor', email: 'ashe@zetagamma.org', phone: '(832) 555-0515', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.05 ≥ 2.50' }, signatures: { pass: null, value: 'Awaiting review' }, dates: { pass: null, value: 'Awaiting review' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },
@@ -344,7 +344,7 @@ export const SEED_CANDIDATES: Candidate[] = [
   person({
     id: '2897055', name: 'Brandon O. Kincaid', school: 'University of North Texas',
     classification: 'Junior', major: 'Information Systems', gpa: 3.37,
-    submitted: '2026-07-17', status: STATUS.REVIEW, chapterKey: 'eta-epsilon', chapterType: 'collegiate',
+    submitted: '2026-07-17', status: STATUS.REVIEW, recommendedStatus: STATUS.REVIEW, chapterKey: 'eta-epsilon', chapterType: 'collegiate',
     sponsor: { name: 'Bro. Dr. Nathaniel Boone', chapter: 'Delta Sigma Lambda', initDate: 'Spring 1985', role: 'Life Member', email: 'boone@deltasigmalambda.org', phone: '(713) 555-0411', relationship: 'Sponsor · Chapter Brother', letterLocation: 'Application PDF · Section: Sponsor (p. 5)', letter: genericLetter('sponsor') },
     recommender: { name: 'Bro. Reginald Hollis', chapter: 'Xi Kappa Lambda', initDate: 'Fall 2001', role: 'Dean of Members', email: 'hollis@zetakappalambda.org', phone: '(832) 555-0511', relationship: 'Recommender · Regional Brother', letterLocation: 'Application PDF · Section: Recommender (p. 5)', letter: genericLetter('recommender') },
     checks: { gpaMin: { pass: true, value: '3.37 ≥ 2.50' }, signatures: { pass: true, value: 'All required signatures present' }, dates: { pass: true, value: 'All dates within window' } , sponsorRecommender: GENERIC_SPONSOR_RECOMMENDER_CHECK },

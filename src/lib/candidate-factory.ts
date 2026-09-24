@@ -120,6 +120,11 @@ export function makeCandidate(input: ManualCandidateInput): Candidate {
     lastActivity: today,
     term,
     status: STATUS.RECEIVED,
+    // A brand-new candidate has no docs uploaded yet, so
+    // computeRecommendedStatus would always land on RECEIVED too -- set
+    // directly rather than recomputing from an empty docs/checks/workflow
+    // shape that hasn't been assembled into one object yet.
+    recommendedStatus: STATUS.RECEIVED,
     chapterKey: input.chapterKey,
     chapterType: chapter?.type || 'alumni',
     workflow,

@@ -11,6 +11,7 @@ import {
   officerCanSeeChapterKey,
   officerCanSeeArea,
   getChapter,
+  computeRecommendedStatus,
 } from '../shared/reference.js'
 import type { OfficerPublic, Candidate, Brother } from '../shared/types.js'
 import { readSession, setSession, clearSession } from './lib/session.js'
@@ -48,6 +49,7 @@ import { MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/
 import { extractHeadshot, parseApplicationFields, extractLetterTexts, extractPdfText, extractMembershipFeesBalance } from './lib/pdf-parse.js'
 import { redactSensitiveInfo } from './lib/redact.js'
 import { countWords, MIN_ESSAY_WORDS } from '../shared/word-count.js'
+import { sendEmail, tempPasswordEmailHtml, statusChangeEmailHtml } from './lib/email.js'
 
 const app = new Hono().basePath('/api')
 
@@ -364,7 +366,13 @@ app.post('/auth/admin/reset-password', async (c) => {
   await upsertCredential(targetId, email, hash, salt, iterations, true)
   await logAudit('system', officer!.id, 'password_reset', `${officer!.name} reset the password for ${target.name}`)
 
-  return c.json({ officerId: targetId, email, tempPassword })
+  const { ok: emailSent } = await sendEmail({
+    to: [email],
+    subject: 'Your TCAC Intake Tool password',
+    html: tempPasswordEmailHtml(target.name, tempPassword),
+  })
+
+  return c.json({ officerId: targetId, email, tempPassword, emailSent })
 })
 
 // One-time bootstrap: seeds a temp password for every officer that doesn't
@@ -393,6 +401,7 @@ app.post('/auth/bootstrap', async (c) => {
     const tempPassword = randomTempPassword()
     const { hash, salt, iterations } = await hashPassword(tempPassword)
     await upsertCredential(o.id, email, hash, salt, iterations, true)
+    await sendEmail({ to: [email], subject: 'Your TCAC Intake Tool password', html: tempPasswordEmailHtml(o.name, tempPassword) })
     results.push({ officerId: o.id, name: o.name, email, tempPassword })
   }
   return c.json({ seeded: results.length, officers: results })
@@ -662,6 +671,51 @@ app.post('/candidates/:id/notes', async (c) => {
   const notes = [...(candidate.notes || []), { author: officer!.name, text, createdAt: new Date().toISOString() }]
   const updated = await updateCandidateFields(candidate.id, { notes, lastActivity: new Date().toISOString().slice(0, 10) })
   await logAudit(candidate.id, officer!.id, 'note', `${officer!.name} posted a reviewer note`)
+
+  return c.json({ candidate: updated })
+})
+
+// Applies the server-computed recommendedStatus (see computeRecommendedStatus
+// in shared/reference.ts) as the candidate's actual status. Never automatic --
+// this only runs when an officer explicitly confirms the recommendation on
+// the Detail page, since "Cleared for Intake" has real consequences.
+app.post('/candidates/:id/status/apply-recommendation', async (c) => {
+  const officer = await currentOfficer(c)
+  const denied = requireOfficer(c, officer)
+  if (denied) return denied
+
+  const candidate = await getCandidate(c.req.param('id'))
+  if (!candidate) return c.json({ error: 'Not found' }, 404)
+  if (!officerCanSeeChapterKey(officer, candidate.chapterKey)) {
+    return c.json({ error: 'That candidate is outside your area of responsibility.' }, 403)
+  }
+
+  if (candidate.recommendedStatus.key === candidate.status.key) {
+    return c.json({ candidate })
+  }
+
+  const previousStatus = candidate.status
+  const updated = await updateCandidateFields(candidate.id, {
+    status: candidate.recommendedStatus,
+    lastActivity: new Date().toISOString().slice(0, 10),
+  })
+  await logAudit(
+    candidate.id,
+    officer!.id,
+    'status_change',
+    `${officer!.name} changed status from "${previousStatus.label}" to "${candidate.recommendedStatus.label}"`
+  )
+
+  if (updated) {
+    const chapter = getChapter(updated.chapterKey)
+    const recipients = (await listOfficers()).filter((o) => officerCanSeeArea(officerRowToPublic(o), chapter.area))
+    const emails = recipients.map((o) => o.email).filter(Boolean)
+    await sendEmail({
+      to: emails,
+      subject: `TCAC Intake: ${updated.name} moved to ${updated.status.label}`,
+      html: statusChangeEmailHtml(updated.name, updated.id, previousStatus.label, updated.status.label, officer!.name),
+    })
+  }
 
   return c.json({ candidate: updated })
 })

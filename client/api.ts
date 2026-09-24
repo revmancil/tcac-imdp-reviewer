@@ -45,7 +45,7 @@ export const api = {
 
   adminListOfficers: () => req<{ rows: AdminOfficerRow[] }>('/api/auth/admin/officers'),
   adminResetPassword: (officerId: string) =>
-    req<{ officerId: string; email: string; tempPassword: string }>('/api/auth/admin/reset-password', { method: 'POST', body: JSON.stringify({ officerId }) }),
+    req<{ officerId: string; email: string; tempPassword: string; emailSent: boolean }>('/api/auth/admin/reset-password', { method: 'POST', body: JSON.stringify({ officerId }) }),
   adminCreateOfficer: (body: { name: string; title: string; initials: string; tier: 'district' | 'area'; area?: number; email: string }) =>
     req<{ officer: OfficerPublic }>('/api/auth/admin/officers', { method: 'POST', body: JSON.stringify(body) }),
   adminUpdateOfficer: (id: string, body: Partial<{ name: string; title: string; initials: string; tier: 'district' | 'area'; area: number | null; email: string; active: boolean }>) =>
@@ -84,6 +84,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ text }),
     }),
+  applyRecommendedStatus: (candidateId: string) =>
+    req<{ candidate: Candidate }>(`/api/candidates/${encodeURIComponent(candidateId)}/status/apply-recommendation`, { method: 'POST' }),
   parseApplication: (file: File) => {
     const form = new FormData()
     form.append('file', file)

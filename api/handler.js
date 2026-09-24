@@ -189,6 +189,20 @@ function getChapter(chapterKey) {
     city: ""
   };
 }
+function computeRecommendedStatus(c) {
+  const applicable = requiredDocsFor(c.chapterType);
+  const anyPresent = applicable.some((d) => c.docs[d.key]?.present);
+  if (!anyPresent) return STATUS.RECEIVED;
+  const allValid = applicable.every((d) => c.docs[d.key]?.present && c.docs[d.key]?.valid);
+  const anyFlagged = applicable.some((d) => c.docs[d.key]?.present && c.docs[d.key]?.valid === false);
+  const checksFail = c.checks.gpaMin.pass === false || c.checks.signatures.pass === false || c.checks.dates.pass === false || c.checks.sponsorRecommender.state === "flag";
+  if (allValid && !checksFail) {
+    const approved = !!c.workflow.ddApproval?.done && !!c.workflow.hqApproval?.done;
+    return approved ? STATUS.CLEARED : STATUS.COMPLETE;
+  }
+  if (checksFail || anyFlagged) return STATUS.MISSING;
+  return STATUS.REVIEW;
+}
 
 // src/lib/session.ts
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
@@ -343,6 +357,7 @@ var NAZHIR = {
   lastActivity: "2026-07-28",
   term: "2025 FALL",
   status: STATUS.REVIEW,
+  recommendedStatus: STATUS.REVIEW,
   chapterKey: "rho-nu-lambda",
   chapterType: "alumni",
   ddrvpDecision: "approved-pending-fees",
@@ -471,6 +486,7 @@ var SEED_CANDIDATES = [
     gpa: 3.68,
     submitted: "2026-07-12",
     status: STATUS.CLEARED,
+    recommendedStatus: STATUS.CLEARED,
     chapterKey: "eta-gamma",
     chapterType: "collegiate",
     sponsor: { name: "Bro. Christopher Freeman", chapter: "Delta Sigma Lambda", initDate: "Spring 1995", role: "District DoM", email: "freeman@deltasigmalambda.org", phone: "(713) 555-0401", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -488,6 +504,7 @@ var SEED_CANDIDATES = [
     gpa: 3.91,
     submitted: "2026-07-08",
     status: STATUS.COMPLETE,
+    recommendedStatus: STATUS.COMPLETE,
     chapterKey: "delta-theta",
     chapterType: "collegiate",
     sponsor: { name: "Bro. James O. Randolph", chapter: "Alpha Sigma Lambda", initDate: "Spring 2005", role: "Treasurer", email: "randolph@sigmalambda.org", phone: "(713) 555-0402", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -505,6 +522,7 @@ var SEED_CANDIDATES = [
     gpa: 3.24,
     submitted: "2026-07-15",
     status: STATUS.MISSING,
+    recommendedStatus: STATUS.MISSING,
     chapterKey: "eta-mu",
     chapterType: "collegiate",
     sponsor: { name: "Bro. Anthony Reeves", chapter: "Xi Kappa Lambda", initDate: "Fall 1994", role: "Financial Secretary", email: "reeves@zetakappalambda.org", phone: "(713) 555-0403", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -526,6 +544,7 @@ var SEED_CANDIDATES = [
     gpa: 2.87,
     submitted: "2026-07-18",
     status: STATUS.REVIEW,
+    recommendedStatus: STATUS.REVIEW,
     chapterKey: "delta-theta",
     chapterType: "collegiate",
     sponsor: { name: "Bro. Malcolm Prescott", chapter: "Eta Gamma", initDate: "Spring 2018", role: "Chapter Advisor", email: "prescott@etagamma.org", phone: "(713) 555-0404", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -543,6 +562,7 @@ var SEED_CANDIDATES = [
     gpa: 3.45,
     submitted: "2026-07-20",
     status: STATUS.MISSING,
+    recommendedStatus: STATUS.MISSING,
     chapterKey: "eta-upsilon",
     chapterType: "collegiate",
     sponsor: { name: "Bro. Dr. Nathaniel Boone", chapter: "Delta Sigma Lambda", initDate: "Spring 1985", role: "Life Member", email: "boone@deltasigmalambda.org", phone: "(713) 555-0405", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -564,6 +584,7 @@ var SEED_CANDIDATES = [
     gpa: 3.72,
     submitted: "2026-07-05",
     status: STATUS.CLEARED,
+    recommendedStatus: STATUS.CLEARED,
     chapterKey: "eta-epsilon",
     chapterType: "collegiate",
     sponsor: { name: "Bro. Marcus D. Alston", chapter: "Alpha Eta Lambda", initDate: "Spring 1998", role: "Chapter President", email: "alston@alphaetalambda.org", phone: "(713) 555-0406", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -581,6 +602,7 @@ var SEED_CANDIDATES = [
     gpa: 2.41,
     submitted: "2026-07-19",
     status: STATUS.MISSING,
+    recommendedStatus: STATUS.MISSING,
     chapterKey: "theta-mu",
     chapterType: "collegiate",
     sponsor: { name: "Bro. Christopher Freeman", chapter: "Delta Sigma Lambda", initDate: "Spring 1995", role: "District DoM", email: "freeman@deltasigmalambda.org", phone: "(713) 555-0407", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -603,6 +625,7 @@ var SEED_CANDIDATES = [
     gpa: 3.55,
     submitted: "2026-07-11",
     status: STATUS.COMPLETE,
+    recommendedStatus: STATUS.COMPLETE,
     chapterKey: "alpha-eta-lambda",
     chapterType: "alumni",
     sponsor: { name: "Bro. Christopher Freeman", chapter: "Delta Sigma Lambda", initDate: "Spring 1995", role: "District DoM", email: "freeman@deltasigmalambda.org", phone: "(713) 555-0412", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -620,6 +643,7 @@ var SEED_CANDIDATES = [
     gpa: 3.12,
     submitted: "2026-07-22",
     status: STATUS.REVIEW,
+    recommendedStatus: STATUS.REVIEW,
     chapterKey: "delta-theta",
     chapterType: "collegiate",
     sponsor: { name: "Bro. James O. Randolph", chapter: "Alpha Sigma Lambda", initDate: "Spring 2005", role: "Treasurer", email: "randolph@sigmalambda.org", phone: "(713) 555-0408", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -637,6 +661,7 @@ var SEED_CANDIDATES = [
     gpa: 3.83,
     submitted: "2026-07-09",
     status: STATUS.CLEARED,
+    recommendedStatus: STATUS.CLEARED,
     chapterKey: "xi-kappa-lambda",
     chapterType: "alumni",
     sponsor: { name: "Bro. Reginald Hollis", chapter: "Xi Kappa Lambda", initDate: "Fall 2001", role: "Dean of Members", email: "hollis@zetakappalambda.org", phone: "(713) 555-0413", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -654,6 +679,7 @@ var SEED_CANDIDATES = [
     gpa: 3.28,
     submitted: "2026-07-24",
     status: STATUS.RECEIVED,
+    recommendedStatus: STATUS.RECEIVED,
     chapterKey: "eta-gamma",
     chapterType: "collegiate",
     sponsor: { name: "Bro. Anthony Reeves", chapter: "Xi Kappa Lambda", initDate: "Fall 1994", role: "Financial Secretary", email: "reeves@zetakappalambda.org", phone: "(713) 555-0409", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -672,6 +698,7 @@ var SEED_CANDIDATES = [
     gpa: 3.61,
     submitted: "2026-07-06",
     status: STATUS.COMPLETE,
+    recommendedStatus: STATUS.COMPLETE,
     chapterKey: "gamma-eta-lambda",
     chapterType: "alumni",
     sponsor: { name: "Bro. Dr. Terrence Baldwin", chapter: "Gamma Eta Lambda", initDate: "Fall 1989", role: "Past Chapter President", email: "baldwin@iotazetalambda.org", phone: "(713) 555-0414", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -689,6 +716,7 @@ var SEED_CANDIDATES = [
     gpa: 3.94,
     submitted: "2026-07-14",
     status: STATUS.MISSING,
+    recommendedStatus: STATUS.MISSING,
     chapterKey: "delta-theta",
     chapterType: "collegiate",
     sponsor: { name: "Bro. Malcolm Prescott", chapter: "Eta Gamma", initDate: "Spring 2018", role: "Chapter Advisor", email: "prescott@etagamma.org", phone: "(713) 555-0410", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -711,6 +739,7 @@ var SEED_CANDIDATES = [
     gpa: 3.05,
     submitted: "2026-07-25",
     status: STATUS.RECEIVED,
+    recommendedStatus: STATUS.RECEIVED,
     chapterKey: "pi-theta-lambda",
     chapterType: "alumni",
     sponsor: { name: "Bro. Solomon Whitaker", chapter: "Pi Theta Lambda", initDate: "Fall 1992", role: "Historian", email: "whitaker@kappadeltalambda.org", phone: "(713) 555-0415", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -729,6 +758,7 @@ var SEED_CANDIDATES = [
     gpa: 3.37,
     submitted: "2026-07-17",
     status: STATUS.REVIEW,
+    recommendedStatus: STATUS.REVIEW,
     chapterKey: "eta-epsilon",
     chapterType: "collegiate",
     sponsor: { name: "Bro. Dr. Nathaniel Boone", chapter: "Delta Sigma Lambda", initDate: "Spring 1985", role: "Life Member", email: "boone@deltasigmalambda.org", phone: "(713) 555-0411", relationship: "Sponsor \xB7 Chapter Brother", letterLocation: "Application PDF \xB7 Section: Sponsor (p. 5)", letter: genericLetter("sponsor") },
@@ -874,6 +904,12 @@ function withCompleteDocs(docs) {
 }
 function rowToCandidate(row) {
   const data = JSON.parse(row.data);
+  const docs = withCompleteDocs(data.docs);
+  const checks = {
+    ...data.checks,
+    sponsorRecommender: computeSponsorRecommenderCheck(data.sponsor ?? null, data.recommender ?? null)
+  };
+  const workflow = data.workflow ?? {};
   return {
     ...data,
     id: row.id,
@@ -888,15 +924,11 @@ function rowToCandidate(row) {
     submitted: row.submitted,
     lastActivity: row.last_activity,
     isNew: !!row.is_new,
-    docs: withCompleteDocs(data.docs),
-    // Recomputed on every read rather than trusted from storage -- the
-    // sponsor/recommender letters can change independently of when this
-    // check was last saved (e.g. a letter gets extracted from a later
-    // application upload), so a stored value would go stale.
-    checks: {
-      ...data.checks,
-      sponsorRecommender: computeSponsorRecommenderCheck(data.sponsor ?? null, data.recommender ?? null)
-    }
+    docs,
+    checks,
+    // Also recomputed on every read, from the same signals shown in the
+    // Detail page's Automated Review strip -- see computeRecommendedStatus.
+    recommendedStatus: computeRecommendedStatus({ chapterType: row.chapter_type, docs, checks, workflow })
   };
 }
 var SORT_MAP = {
@@ -1214,6 +1246,11 @@ function makeCandidate(input) {
     lastActivity: today,
     term,
     status: STATUS.RECEIVED,
+    // A brand-new candidate has no docs uploaded yet, so
+    // computeRecommendedStatus would always land on RECEIVED too -- set
+    // directly rather than recomputing from an empty docs/checks/workflow
+    // shape that hasn't been assembled into one object yet.
+    recommendedStatus: STATUS.RECEIVED,
     chapterKey: input.chapterKey,
     chapterType: chapter?.type || "alumni",
     workflow,
@@ -1691,6 +1728,59 @@ async function redactSensitiveInfo(pdfBytes) {
   return { bytes: buffer.asUint8Array(), redactedCount };
 }
 
+// src/lib/email.ts
+var RESEND_API_URL = "https://api.resend.com/emails";
+async function sendEmail(input) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from) {
+    console.error("Email not configured (RESEND_API_KEY/RESEND_FROM_EMAIL) -- skipping:", input.subject);
+    return { ok: false, error: "Email is not configured on this deployment." };
+  }
+  if (input.to.length === 0) return { ok: true };
+  try {
+    const res = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ from, to: input.to, subject: input.subject, html: input.html })
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error("Resend send failed:", res.status, body);
+      return { ok: false, error: `Resend returned ${res.status}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error("Resend send threw:", err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+var WRAP = (body) => `
+  <div style="font-family: -apple-system, Segoe UI, Arial, sans-serif; color: #1a1a1a; max-width: 520px;">
+    ${body}
+    <p style="margin-top: 24px; font-size: 12px; color: #888;">TCAC Intake Review Tool \u2014 Texas Council of Alpha Chapters</p>
+  </div>
+`;
+function tempPasswordEmailHtml(officerName, tempPassword) {
+  return WRAP(`
+    <p>Hi ${officerName},</p>
+    <p>A temporary password has been issued for your TCAC Intake Review Tool account:</p>
+    <p style="font-family: monospace; font-size: 18px; background: #f4f4f4; padding: 10px 14px; border-radius: 4px; display: inline-block;">${tempPassword}</p>
+    <p>You'll be asked to set a new password the first time you sign in with it.</p>
+    <p>If you weren't expecting this, contact your District Administrator.</p>
+  `);
+}
+function statusChangeEmailHtml(candidateName, candidateId, fromLabel, toLabel, changedBy) {
+  return WRAP(`
+    <p>Candidate <b>${candidateName}</b> (#${candidateId}) changed status:</p>
+    <p style="font-size: 16px;">${fromLabel} \u2192 <b>${toLabel}</b></p>
+    <p>Changed by ${changedBy}.</p>
+  `);
+}
+
 // src/index.tsx
 var app = new Hono().basePath("/api");
 var NEEDS_VERIFICATION_NOTES = {
@@ -1919,7 +2009,12 @@ app.post("/auth/admin/reset-password", async (c) => {
   const { hash, salt, iterations } = await hashPassword(tempPassword);
   await upsertCredential(targetId, email, hash, salt, iterations, true);
   await logAudit("system", officer.id, "password_reset", `${officer.name} reset the password for ${target.name}`);
-  return c.json({ officerId: targetId, email, tempPassword });
+  const { ok: emailSent } = await sendEmail({
+    to: [email],
+    subject: "Your TCAC Intake Tool password",
+    html: tempPasswordEmailHtml(target.name, tempPassword)
+  });
+  return c.json({ officerId: targetId, email, tempPassword, emailSent });
 });
 app.post("/auth/bootstrap", async (c) => {
   const configured = process.env.AUTH_BOOTSTRAP_SECRET;
@@ -1940,6 +2035,7 @@ app.post("/auth/bootstrap", async (c) => {
     const tempPassword = randomTempPassword();
     const { hash, salt, iterations } = await hashPassword(tempPassword);
     await upsertCredential(o.id, email, hash, salt, iterations, true);
+    await sendEmail({ to: [email], subject: "Your TCAC Intake Tool password", html: tempPasswordEmailHtml(o.name, tempPassword) });
     results.push({ officerId: o.id, name: o.name, email, tempPassword });
   }
   return c.json({ seeded: results.length, officers: results });
@@ -2161,6 +2257,41 @@ app.post("/candidates/:id/notes", async (c) => {
   await logAudit(candidate.id, officer.id, "note", `${officer.name} posted a reviewer note`);
   return c.json({ candidate: updated });
 });
+app.post("/candidates/:id/status/apply-recommendation", async (c) => {
+  const officer = await currentOfficer(c);
+  const denied = requireOfficer(c, officer);
+  if (denied) return denied;
+  const candidate = await getCandidate(c.req.param("id"));
+  if (!candidate) return c.json({ error: "Not found" }, 404);
+  if (!officerCanSeeChapterKey(officer, candidate.chapterKey)) {
+    return c.json({ error: "That candidate is outside your area of responsibility." }, 403);
+  }
+  if (candidate.recommendedStatus.key === candidate.status.key) {
+    return c.json({ candidate });
+  }
+  const previousStatus = candidate.status;
+  const updated = await updateCandidateFields(candidate.id, {
+    status: candidate.recommendedStatus,
+    lastActivity: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10)
+  });
+  await logAudit(
+    candidate.id,
+    officer.id,
+    "status_change",
+    `${officer.name} changed status from "${previousStatus.label}" to "${candidate.recommendedStatus.label}"`
+  );
+  if (updated) {
+    const chapter = getChapter(updated.chapterKey);
+    const recipients = (await listOfficers()).filter((o) => officerCanSeeArea(officerRowToPublic(o), chapter.area));
+    const emails = recipients.map((o) => o.email).filter(Boolean);
+    await sendEmail({
+      to: emails,
+      subject: `TCAC Intake: ${updated.name} moved to ${updated.status.label}`,
+      html: statusChangeEmailHtml(updated.name, updated.id, previousStatus.label, updated.status.label, officer.name)
+    });
+  }
+  return c.json({ candidate: updated });
+});
 app.post("/candidates/:id/docs/:docKey", async (c) => {
   const officer = await currentOfficer(c);
   const denied = requireOfficer(c, officer);
@@ -2330,8 +2461,8 @@ var config = {
   // long.
   maxDuration: 60
 };
-var fetch = handle(src_default);
+var fetch2 = handle(src_default);
 export {
   config,
-  fetch
+  fetch2 as fetch
 };

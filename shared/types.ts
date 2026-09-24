@@ -129,6 +129,10 @@ export interface Candidate {
   lastActivity: string;
   term: string;
   status: StatusDef;
+  // Recomputed on every read from docs/checks/workflow -- see
+  // computeRecommendedStatus in shared/reference.ts. Never written
+  // automatically; an officer reviews it and explicitly applies it.
+  recommendedStatus: StatusDef;
   chapterKey: string;
   chapterType: ChapterType;
   workflow: Record<string, WorkflowStepState>;
