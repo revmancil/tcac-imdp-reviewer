@@ -771,6 +771,7 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
     note: needsVerification || uploadNote,
     file: `/api/files/${key}`,
     uploadedAt: new Date().toISOString(),
+    needsVerification: !!needsVerification,
   }
   let updated = await updateCandidateDoc(id, docKey, doc)
 
@@ -888,6 +889,11 @@ app.post('/candidates/:id/docs/:docKey/flag', async (c) => {
     ...existing,
     valid: body.valid,
     note: body.valid ? null : note,
+    // Any explicit officer action here -- clearing or (re-)flagging --
+    // resolves the doc out of the automatic "awaiting verification" state;
+    // from this point valid=false, if set, reflects a real problem an
+    // officer found, not just an unreviewed fresh upload.
+    needsVerification: false,
   }
   const updated = await updateCandidateDoc(id, docKey, doc)
   await logAudit(

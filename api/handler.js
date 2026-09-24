@@ -194,7 +194,7 @@ function computeRecommendedStatus(c) {
   const anyPresent = applicable.some((d) => c.docs[d.key]?.present);
   if (!anyPresent) return STATUS.RECEIVED;
   const allValid = applicable.every((d) => c.docs[d.key]?.present && c.docs[d.key]?.valid);
-  const anyFlagged = applicable.some((d) => c.docs[d.key]?.present && c.docs[d.key]?.valid === false);
+  const anyFlagged = applicable.some((d) => c.docs[d.key]?.present && c.docs[d.key]?.valid === false && !c.docs[d.key]?.needsVerification);
   const checksFail = c.checks.gpaMin.pass === false || c.checks.signatures.pass === false || c.checks.dates.pass === false || c.checks.sponsorRecommender.state === "flag";
   if (allValid && !checksFail) {
     const approved = !!c.workflow.ddApproval?.done && !!c.workflow.hqApproval?.done;
@@ -2411,7 +2411,8 @@ app.post("/candidates/:id/docs/:docKey", async (c) => {
     valid: !needsVerification,
     note: needsVerification || uploadNote,
     file: `/api/files/${key}`,
-    uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
+    uploadedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    needsVerification: !!needsVerification
   };
   let updated = await updateCandidateDoc(id, docKey, doc);
   const workflowStepKey = WORKFLOW_STEP_FOR_DOC[docKey];
@@ -2490,7 +2491,12 @@ app.post("/candidates/:id/docs/:docKey/flag", async (c) => {
   const doc = {
     ...existing,
     valid: body.valid,
-    note: body.valid ? null : note
+    note: body.valid ? null : note,
+    // Any explicit officer action here -- clearing or (re-)flagging --
+    // resolves the doc out of the automatic "awaiting verification" state;
+    // from this point valid=false, if set, reflects a real problem an
+    // officer found, not just an unreviewed fresh upload.
+    needsVerification: false
   };
   const updated = await updateCandidateDoc(id, docKey, doc);
   await logAudit(

@@ -75,6 +75,15 @@ export interface DocState {
   note: string | null;
   file: string | null;
   uploadedAt?: string | null;
+  // True only for the automatic "needs officer verification" flag a fresh
+  // upload of transcript/enrollmentLetter/medical/nda starts with (see
+  // NEEDS_VERIFICATION_NOTES in src/index.tsx) -- distinct from valid=false
+  // meaning an officer actually looked and found a real problem. Both cases
+  // share the same present/valid shape, so this is what lets
+  // computeRecommendedStatus tell "routine, unreviewed yet" apart from
+  // "actually flagged." Cleared (set false) the moment an officer takes any
+  // explicit action on the doc via the flag/clear-flag endpoint.
+  needsVerification?: boolean;
 }
 
 export interface WorkflowStepState {

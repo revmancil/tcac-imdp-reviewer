@@ -238,7 +238,7 @@ export function getChapter(chapterKey: string): Chapter {
 // automatically, since "Cleared for Intake" has real consequences.
 export function computeRecommendedStatus(c: {
   chapterType: ChapterType;
-  docs: Record<string, { present: boolean; valid: boolean }>;
+  docs: Record<string, { present: boolean; valid: boolean; needsVerification?: boolean }>;
   checks: {
     gpaMin: { pass: boolean | null };
     signatures: { pass: boolean | null };
@@ -252,7 +252,13 @@ export function computeRecommendedStatus(c: {
   if (!anyPresent) return STATUS.RECEIVED;
 
   const allValid = applicable.every((d) => c.docs[d.key]?.present && c.docs[d.key]?.valid);
-  const anyFlagged = applicable.some((d) => c.docs[d.key]?.present && c.docs[d.key]?.valid === false);
+  // A doc that's still sitting in its fresh-upload "awaiting officer
+  // verification" state (transcript/enrollmentLetter/medical/nda -- see
+  // NEEDS_VERIFICATION_NOTES) looks identical to an actively-flagged
+  // problem (present + valid=false) unless we check needsVerification too.
+  // Only a real, officer-affirmed problem should read as Missing Docs;
+  // "just uploaded, nobody's looked yet" is Under Review.
+  const anyFlagged = applicable.some((d) => c.docs[d.key]?.present && c.docs[d.key]?.valid === false && !c.docs[d.key]?.needsVerification);
   const checksFail =
     c.checks.gpaMin.pass === false ||
     c.checks.signatures.pass === false ||

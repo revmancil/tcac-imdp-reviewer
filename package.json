@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "node scripts/migrate.mjs",
     "db:backfill-school": "node --experimental-strip-types scripts/backfill-school.mjs",
+    "db:backfill-needs-verification": "node scripts/backfill-needs-verification.mjs",
     "deploy": "npm run build && vercel deploy --prod"
   },
   "dependencies": {
