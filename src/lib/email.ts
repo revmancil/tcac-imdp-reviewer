@@ -8,7 +8,10 @@
 // underlying action already succeeded in the database by the time we try to
 // notify anyone about it.
 
+import { TCAC_SEAL_BASE64 } from './tcac-seal.js';
+
 const RESEND_API_URL = 'https://api.resend.com/emails';
+const SEAL_CONTENT_ID = 'tcac-seal';
 
 export interface SendEmailInput {
   to: string[];
@@ -32,7 +35,17 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; e
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from, to: input.to, subject: input.subject, html: input.html }),
+      body: JSON.stringify({
+        from,
+        to: input.to,
+        subject: input.subject,
+        html: input.html,
+        // Every template built on emailShell() references the logo via
+        // cid:tcac-seal -- attaching it here (rather than every call site)
+        // keeps that wiring in one place. Harmless/unused on any HTML that
+        // doesn't reference the cid.
+        attachments: [{ filename: 'tcac-seal.png', content: TCAC_SEAL_BASE64, content_id: SEAL_CONTENT_ID }],
+      }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -79,13 +92,22 @@ function emailShell(preheader: string, bodyHtml: string): string {
     <span style="display: none; max-height: 0; overflow: hidden;">${preheader}</span>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 560px; margin: 0 auto; border-collapse: collapse;">
       <tr>
-        <td style="background: ${INK}; border: 1px solid ${GOLD}; border-bottom: none; padding: 22px 28px; border-radius: 2px 2px 0 0;">
-          <div style="font-family: Arial, Helvetica, sans-serif; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: ${GOLD}; margin-bottom: 4px;">
-            Texas Council of Alpha Chapters
-          </div>
-          <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 22px; color: ${CREAM}; font-style: italic;">
-            TCAC Intake Review Tool
-          </div>
+        <td style="background: ${INK}; border: 1px solid ${GOLD}; border-bottom: none; padding: 20px 28px; border-radius: 2px 2px 0 0;">
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding-right: 14px;">
+                <img src="cid:${SEAL_CONTENT_ID}" width="48" height="48" alt="TCAC seal" style="display: block; width: 48px; height: 48px;" />
+              </td>
+              <td>
+                <div style="font-family: Arial, Helvetica, sans-serif; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: ${GOLD}; margin-bottom: 4px;">
+                  Texas Council of Alpha Chapters
+                </div>
+                <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 22px; color: ${CREAM}; font-style: italic;">
+                  TCAC Intake Review Tool
+                </div>
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
       <tr>
