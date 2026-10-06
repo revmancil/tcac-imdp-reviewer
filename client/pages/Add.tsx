@@ -556,7 +556,206 @@ function CSVUpload({ onCandidateAdded }: { onCandidateAdded: () => void }) {
   )
 }
 
+const MAX_BATCH = 10
+
 function PDFBatchUpload({ onDone }: { onDone: () => void }) {
+  const [subMode, setSubMode] = useState<'one-at-a-time' | 'combined'>('one-at-a-time')
+  return (
+    <div>
+      <div className="add-mode-tabs" style={{ marginBottom: 16 }}>
+        <button className={`add-mode-tab ${subMode === 'one-at-a-time' ? 'add-mode-tab-active' : ''}`} onClick={() => setSubMode('one-at-a-time')}>
+          <div className="add-mode-icon"><Icon name="user" size={18} /></div>
+          <div className="add-mode-body">
+            <div className="add-mode-label">Add One at a Time</div>
+            <div className="add-mode-sub">Upload each application separately, then submit the group together</div>
+          </div>
+        </button>
+        <button className={`add-mode-tab ${subMode === 'combined' ? 'add-mode-tab-active' : ''}`} onClick={() => setSubMode('combined')}>
+          <div className="add-mode-icon"><Icon name="file" size={18} /></div>
+          <div className="add-mode-body">
+            <div className="add-mode-label">One Combined PDF</div>
+            <div className="add-mode-sub">You've already merged several applications into a single file</div>
+          </div>
+        </button>
+      </div>
+      {subMode === 'one-at-a-time' ? <OneAtATimeUpload onDone={onDone} /> : <CombinedPdfUpload onDone={onDone} />}
+    </div>
+  )
+}
+
+interface TrayItem {
+  id: number
+  file: File
+  fields: Record<string, string>
+  headshotDataUrl: string | null
+  status: 'parsing' | 'ready' | 'parse-error' | 'creating' | 'created' | 'create-error'
+  message?: string
+}
+
+let trayItemSeq = 0
+
+function OneAtATimeUpload({ onDone }: { onDone: () => void }) {
+  const { reference } = useApp()
+  const [items, setItems] = useState<TrayItem[]>([])
+  const [dragOver, setDragOver] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [summary, setSummary] = useState<{ created: number; failed: number } | null>(null)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  // Items are matched by a stable id (not array position) on every update
+  // below, so an add/remove elsewhere in the tray can never land on the
+  // wrong row -- array indices shift whenever something is removed, but ids
+  // don't.
+  const updateItem = (id: number, patch: Partial<TrayItem>) =>
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)))
+
+  const addFiles = (fileList: FileList | File[] | null | undefined) => {
+    if (!fileList) return
+    const incoming = Array.from(fileList).filter((f) => f.type === 'application/pdf')
+    const room = MAX_BATCH - items.length
+    const toAdd = incoming.slice(0, room)
+    if (toAdd.length === 0) return
+
+    const newItems: TrayItem[] = toAdd.map((file) => ({ id: ++trayItemSeq, file, fields: {}, headshotDataUrl: null, status: 'parsing' }))
+    setItems((prev) => [...prev, ...newItems])
+
+    newItems.forEach(({ id, file }) => {
+      api
+        .parseApplication(file)
+        .then(({ fields, headshotDataUrl }) => updateItem(id, { fields, headshotDataUrl, status: 'ready' }))
+        .catch((err: any) => updateItem(id, { status: 'parse-error', message: err.message || 'Could not read this file' }))
+    })
+  }
+
+  const removeItem = (id: number) => setItems((prev) => prev.filter((it) => it.id !== id))
+
+  const submitAll = async () => {
+    setSubmitting(true)
+    let created = 0
+    let failed = 0
+    for (const item of items) {
+      if (item.status !== 'ready') continue
+      updateItem(item.id, { status: 'creating' })
+      try {
+        const name = [item.fields.firstName, item.fields.middleName, item.fields.lastName].filter(Boolean).join(' ')
+        const { candidate, errors } = await api.createCandidate({ ...item.fields, name })
+        if (errors) throw Object.assign(new Error(Object.values(errors)[0] as string), { data: { errors } })
+        await api.uploadDoc(candidate.id, 'application', item.file)
+        if (item.headshotDataUrl) {
+          const ext = item.headshotDataUrl.startsWith('data:image/png') ? 'png' : 'jpg'
+          await api.uploadDoc(candidate.id, 'headshot', dataUrlToFile(item.headshotDataUrl, `headshot.${ext}`))
+        }
+        created++
+        updateItem(item.id, { status: 'created' })
+      } catch (err: any) {
+        failed++
+        const message = err.data?.errors ? Object.values(err.data.errors)[0] as string : err.message || 'Could not create this candidate'
+        updateItem(item.id, { status: 'create-error', message })
+      }
+    }
+    setSubmitting(false)
+    setSummary({ created, failed })
+  }
+
+  if (summary) {
+    return (
+      <div className="add-success">
+        <div className="add-success-icon"><Icon name="check" size={40} /></div>
+        <div className="add-success-title">Bulk Upload Complete</div>
+        <div className="add-success-name">{summary.created} candidate{summary.created === 1 ? '' : 's'} added</div>
+        {summary.failed > 0 && (
+          <div className="csv-errors" style={{ textAlign: 'left', marginTop: 16 }}>
+            <div className="csv-errors-title">{summary.failed} couldn't be created</div>
+            <ul>
+              {items.filter((it) => it.status === 'create-error').map((it, i) => <li key={i}><b>{it.file.name}:</b> {it.message}</li>)}
+            </ul>
+          </div>
+        )}
+        <div className="add-success-actions">
+          <button className="btn-secondary" onClick={() => { setSummary(null); setItems([]) }}>Upload another batch</button>
+          <button className="btn-primary" onClick={onDone}>Return to Roster <Icon name="chevron-right" size={12} /></button>
+        </div>
+      </div>
+    )
+  }
+
+  const readyCount = items.filter((it) => it.status === 'ready').length
+  const atCapacity = items.length >= MAX_BATCH || submitting
+
+  return (
+    <div className="csv-panel">
+      <div className="csv-instructions">
+        <div className="csv-inst-title">How one-at-a-time upload works</div>
+        <ol className="csv-inst-list">
+          <li>Upload each candidate's Application PDF separately — drop one, it's added to the list below, then drop the next.</li>
+          <li>Keep going until everyone in this batch is listed (up to {MAX_BATCH}).</li>
+          <li>Review the list, remove anything wrong, then submit the whole group at once.</li>
+        </ol>
+      </div>
+
+      <div
+        className={`csv-dropzone ${dragOver ? 'csv-dropzone-over' : ''}`}
+        onDragOver={(e) => { e.preventDefault(); if (!atCapacity) setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!atCapacity) addFiles(e.dataTransfer.files) }}
+        onClick={() => { if (!atCapacity) inputRef.current?.click() }}
+        style={atCapacity ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+      >
+        <input ref={inputRef} type="file" accept="application/pdf" multiple style={{ display: 'none' }} disabled={atCapacity} onChange={(e) => { addFiles(e.target.files); e.target.value = '' }} />
+        <div className="dz-icon"><Icon name="inbox" size={40} /></div>
+        <div className="dz-title">{atCapacity ? `Batch full (${MAX_BATCH} of ${MAX_BATCH})` : 'Add an Application PDF'}</div>
+        <div className="dz-drop-line">{atCapacity ? 'Submit or remove one to add another' : <>Drag &amp; drop one or more PDFs, or <b>click to browse</b></>}</div>
+        <div className="dz-role">{items.length} of {MAX_BATCH} added</div>
+      </div>
+
+      {items.length > 0 && (
+        <div className="csv-preview">
+          <div className="csv-table-wrap">
+            <table className="csv-table">
+              <thead><tr><th>File</th><th>ID</th><th>Name</th><th>Chapter</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                {items.map((it) => {
+                  const name = [it.fields.firstName, it.fields.middleName, it.fields.lastName].filter(Boolean).join(' ')
+                  const chapterName = it.fields.chapterKey ? reference?.chapters[it.fields.chapterKey]?.name : undefined
+                  return (
+                    <tr key={it.id}>
+                      <td className="csv-cell-sub">{it.file.name}</td>
+                      <td className="mono">{it.fields.id || '—'}</td>
+                      <td>{name || '—'}</td>
+                      <td>{chapterName || <span className="csv-cell-empty">— not detected —</span>}</td>
+                      <td>
+                        {it.status === 'parsing' && <span className="check-flag"><Icon name="clock" size={12} /> Reading…</span>}
+                        {it.status === 'ready' && <span className="check-ok"><Icon name="check" size={12} /> Ready</span>}
+                        {it.status === 'parse-error' && <span className="check-flag" title={it.message}><Icon name="warn" size={12} /> Couldn't read</span>}
+                        {it.status === 'creating' && <span className="check-flag"><Icon name="clock" size={12} /> Creating…</span>}
+                        {it.status === 'created' && <span className="check-ok"><Icon name="check" size={12} /> Created</span>}
+                        {it.status === 'create-error' && <span className="check-flag" title={it.message}><Icon name="warn" size={12} /> Failed</span>}
+                      </td>
+                      <td>
+                        {!submitting && (it.status === 'ready' || it.status === 'parse-error') && (
+                          <button className="link-btn" onClick={() => removeItem(it.id)}><Icon name="x" size={12} /></button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="csv-preview-actions">
+            <button className="btn-secondary" onClick={() => setItems([])} disabled={submitting}>Clear All</button>
+            <button className="btn-primary" onClick={submitAll} disabled={readyCount === 0 || submitting}>
+              <Icon name="check" size={13} /> {submitting ? 'Creating…' : `Submit ${readyCount} candidate${readyCount === 1 ? '' : 's'}`}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CombinedPdfUpload({ onDone }: { onDone: () => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [rows, setRows] = useState<PdfBatchRow[] | null>(null)
   const [pagesPerApplication, setPagesPerApplication] = useState(6)
