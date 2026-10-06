@@ -5,7 +5,7 @@ import { useApp } from '../context'
 import { api } from '../api'
 import { DocContent, mockEssayParagraphs } from './DocContent'
 import { requiredDocsFor } from '../../shared/reference'
-import { countWords, MIN_ESSAY_WORDS } from '../../shared/word-count'
+import { countWords, MIN_ESSAY_WORDS, essayWordCountState } from '../../shared/word-count'
 import type { Brother, Candidate, DocState, RequiredDocDef } from '../../shared/types'
 
 export default function Detail() {
@@ -577,10 +577,10 @@ function EssayChecklistWordCount({ candidate }: { candidate: Candidate }) {
   const source = essayWordSource(candidate)
   if (source === null) return null
   const words = countWords(source)
-  const meetsMin = words >= MIN_ESSAY_WORDS
+  const state = essayWordCountState(words)
   return (
-    <div className={`checkrow-note ${meetsMin ? 'wordcount-ok' : 'wordcount-warn'}`}>
-      {words} words {meetsMin ? `· meets ${MIN_ESSAY_WORDS}-word minimum` : `· below ${MIN_ESSAY_WORDS}-word minimum`}
+    <div className={`checkrow-note ${state.ok ? 'wordcount-ok' : 'wordcount-warn'}`}>
+      {state.message}
     </div>
   )
 }
@@ -591,11 +591,11 @@ function EssayWordCount({ candidate }: { candidate: Candidate }) {
     return <div className="doc-flag-annot doc-flag-inline"><Icon name="clock" size={14} /><span>Word count pending — re-upload the essay to compute it</span></div>
   }
   const words = countWords(source)
-  const meetsMin = words >= MIN_ESSAY_WORDS
+  const state = essayWordCountState(words)
   return (
-    <div className={`doc-flag-annot doc-flag-inline ${meetsMin ? 'doc-flag-ok' : ''}`}>
-      <Icon name={meetsMin ? 'check' : 'warn'} size={14} />
-      <span>{words} words {meetsMin ? `· meets ${MIN_ESSAY_WORDS}-word minimum` : `· below ${MIN_ESSAY_WORDS}-word minimum`}</span>
+    <div className={`doc-flag-annot doc-flag-inline ${state.ok ? 'doc-flag-ok' : ''}`}>
+      <Icon name={state.ok ? 'check' : 'warn'} size={14} />
+      <span>{state.message}</span>
     </div>
   )
 }

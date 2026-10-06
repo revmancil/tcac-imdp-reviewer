@@ -5,10 +5,26 @@ import type { Brother, TriCheckState } from './types.js';
 
 export const MIN_ESSAY_WORDS = 300;
 
+// The candidate essay itself has its own range, separate from the
+// sponsor/recommender letter minimum above -- too short doesn't show
+// enough, too long isn't being respected as a 500-1500 word essay prompt.
+export const ESSAY_MIN_WORDS = 500;
+export const ESSAY_MAX_WORDS = 1500;
+
 export function countWords(text: string | null | undefined): number {
   const trimmed = (text || '').trim();
   if (!trimmed) return 0;
   return trimmed.split(/\s+/).length;
+}
+
+export function essayWordCountState(words: number): { ok: boolean; message: string } {
+  if (words < ESSAY_MIN_WORDS) {
+    return { ok: false, message: `${words} words — below the ${ESSAY_MIN_WORDS}-word minimum` };
+  }
+  if (words > ESSAY_MAX_WORDS) {
+    return { ok: false, message: `${words} words — exceeds the ${ESSAY_MAX_WORDS}-word maximum` };
+  }
+  return { ok: true, message: `${words} words · meets the ${ESSAY_MIN_WORDS}–${ESSAY_MAX_WORDS} word requirement` };
 }
 
 // Strips case/punctuation/whitespace differences so a copy-pasted letter is

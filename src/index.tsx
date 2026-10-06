@@ -48,7 +48,7 @@ import { hashPassword, verifyPassword, randomTempPassword } from './lib/password
 import { MAX_LOGIN_ATTEMPTS, LOCKOUT_MINUTES, MIN_PASSWORD_LENGTH } from './lib/auth.js'
 import { extractHeadshot, parseApplicationFields, extractLetterTexts, extractPdfText, extractMembershipFeesBalance } from './lib/pdf-parse.js'
 import { redactSensitiveInfo } from './lib/redact.js'
-import { countWords, MIN_ESSAY_WORDS } from '../shared/word-count.js'
+import { countWords, essayWordCountState } from '../shared/word-count.js'
 import { sendEmail, tempPasswordEmailHtml, statusChangeEmailHtml } from './lib/email.js'
 
 const app = new Hono().basePath('/api')
@@ -832,14 +832,13 @@ app.post('/candidates/:id/docs/:docKey', async (c) => {
         const essayText = await extractPdfText(new Uint8Array(originalBytes))
         if (essayText.trim()) updated = (await updateCandidateFields(id, { essayText })) || updated
         const words = countWords(essayText)
-        const meetsMin = !!essayText.trim() && words >= MIN_ESSAY_WORDS
+        const essayState = essayWordCountState(words)
+        const meetsRange = !!essayText.trim() && essayState.ok
         const essayNote = essayText.trim()
-          ? meetsMin
-            ? `${words} words`
-            : `Essay is ${words} words — below the ${MIN_ESSAY_WORDS}-word minimum`
-          : 'Could not read the essay text automatically — please confirm it meets the 300-word minimum manually'
+          ? essayState.message
+          : 'Could not read the essay text automatically — please confirm it meets the 500–1500 word requirement manually'
         const essayDoc = updated?.docs.essay || current.docs.essay
-        updated = (await updateCandidateDoc(id, docKey, { ...essayDoc, valid: meetsMin, note: essayNote })) || updated
+        updated = (await updateCandidateDoc(id, docKey, { ...essayDoc, valid: meetsRange, note: essayNote })) || updated
       }
     } catch (err) {
       console.error('Letter/essay/fees extraction failed', err)

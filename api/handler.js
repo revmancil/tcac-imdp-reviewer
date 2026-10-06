@@ -247,10 +247,21 @@ import postgres from "postgres";
 
 // shared/word-count.ts
 var MIN_ESSAY_WORDS = 300;
+var ESSAY_MIN_WORDS = 500;
+var ESSAY_MAX_WORDS = 1500;
 function countWords(text) {
   const trimmed = (text || "").trim();
   if (!trimmed) return 0;
   return trimmed.split(/\s+/).length;
+}
+function essayWordCountState(words) {
+  if (words < ESSAY_MIN_WORDS) {
+    return { ok: false, message: `${words} words \u2014 below the ${ESSAY_MIN_WORDS}-word minimum` };
+  }
+  if (words > ESSAY_MAX_WORDS) {
+    return { ok: false, message: `${words} words \u2014 exceeds the ${ESSAY_MAX_WORDS}-word maximum` };
+  }
+  return { ok: true, message: `${words} words \xB7 meets the ${ESSAY_MIN_WORDS}\u2013${ESSAY_MAX_WORDS} word requirement` };
 }
 function normalizeForCompare(text) {
   return text.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
@@ -1432,6 +1443,17 @@ async function verifyPassword(password, storedHash, storedSalt, iterations = ITE
 // src/lib/pdf-parse.ts
 import * as mupdf from "mupdf";
 import { createWorker } from "tesseract.js";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+var __dirname = path.dirname(fileURLToPath(import.meta.url));
+var BUNDLED_TESSDATA_DIR = [path.join(__dirname, "../tessdata"), path.join(__dirname, "../../tessdata")].find(
+  (dir) => existsSync(path.join(dir, "eng.traineddata.gz"))
+);
+var DEFAULT_LANG_PATH = process.env.TESSERACT_LANG_PATH || BUNDLED_TESSDATA_DIR;
+function workerOptions() {
+  return DEFAULT_LANG_PATH ? { langPath: DEFAULT_LANG_PATH, cachePath: "/tmp", gzip: true } : void 0;
+}
 function findHeadshotOnPage(page) {
   const resources = page.getObject().get("Resources");
   const xobjects = resources.get("XObject");
@@ -1546,8 +1568,7 @@ async function extractLetterTexts(pdfBytes) {
   const pageCount = doc.countPages();
   const pageIndex = 4;
   if (pageIndex >= pageCount) return {};
-  const langPath = process.env.TESSERACT_LANG_PATH;
-  const worker = await createWorker("eng", 1, langPath ? { langPath, cachePath: langPath, gzip: true } : void 0);
+  const worker = await createWorker("eng", 1, workerOptions());
   try {
     const png = await renderPageToPNG(doc, pageIndex);
     const { data } = await worker.recognize(Buffer.from(png));
@@ -1576,8 +1597,7 @@ async function extractLetterTexts(pdfBytes) {
 var MEMBERSHIP_FEES_RE = /Membership Fees\s*\(?\s*Bal(?:ance)?:?\s*\$?\s*([\d,]+\.\d{2})\)?/i;
 async function extractMembershipFeesBalance(pdfBytes) {
   const doc = mupdf.Document.openDocument(pdfBytes, "application/pdf");
-  const langPath = process.env.TESSERACT_LANG_PATH;
-  const worker = await createWorker("eng", 1, langPath ? { langPath, cachePath: langPath, gzip: true } : void 0);
+  const worker = await createWorker("eng", 1, workerOptions());
   try {
     const png = await renderPageToPNG(doc, 0);
     const { data } = await worker.recognize(Buffer.from(png));
@@ -1590,8 +1610,7 @@ async function extractMembershipFeesBalance(pdfBytes) {
 async function extractPdfText(pdfBytes) {
   const doc = mupdf.Document.openDocument(pdfBytes, "application/pdf");
   const pageCount = doc.countPages();
-  const langPath = process.env.TESSERACT_LANG_PATH;
-  const worker = await createWorker("eng", 1, langPath ? { langPath, cachePath: langPath, gzip: true } : void 0);
+  const worker = await createWorker("eng", 1, workerOptions());
   try {
     const parts = [];
     for (let i = 0; i < pageCount; i++) {
@@ -1608,8 +1627,7 @@ async function extractPdfText(pdfBytes) {
 async function parseApplicationFields(pdfBytes, chapters) {
   const doc = mupdf.Document.openDocument(pdfBytes, "application/pdf");
   const pageCount = Math.min(doc.countPages(), 2);
-  const langPath = process.env.TESSERACT_LANG_PATH;
-  const worker = await createWorker("eng", 1, langPath ? { langPath, cachePath: langPath, gzip: true } : void 0);
+  const worker = await createWorker("eng", 1, workerOptions());
   try {
     const fields = {};
     let combinedText = "";
@@ -2456,10 +2474,11 @@ app.post("/candidates/:id/docs/:docKey", async (c) => {
         const essayText = await extractPdfText(new Uint8Array(originalBytes));
         if (essayText.trim()) updated = await updateCandidateFields(id, { essayText }) || updated;
         const words = countWords(essayText);
-        const meetsMin = !!essayText.trim() && words >= MIN_ESSAY_WORDS;
-        const essayNote = essayText.trim() ? meetsMin ? `${words} words` : `Essay is ${words} words \u2014 below the ${MIN_ESSAY_WORDS}-word minimum` : "Could not read the essay text automatically \u2014 please confirm it meets the 300-word minimum manually";
+        const essayState = essayWordCountState(words);
+        const meetsRange = !!essayText.trim() && essayState.ok;
+        const essayNote = essayText.trim() ? essayState.message : "Could not read the essay text automatically \u2014 please confirm it meets the 500\u20131500 word requirement manually";
         const essayDoc = updated?.docs.essay || current.docs.essay;
-        updated = await updateCandidateDoc(id, docKey, { ...essayDoc, valid: meetsMin, note: essayNote }) || updated;
+        updated = await updateCandidateDoc(id, docKey, { ...essayDoc, valid: meetsRange, note: essayNote }) || updated;
       }
     } catch (err) {
       console.error("Letter/essay/fees extraction failed", err);

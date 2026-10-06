@@ -15,8 +15,43 @@
 // created (same pattern as the existing CSV import preview).
 import * as mupdf from 'mupdf'
 import { createWorker } from 'tesseract.js'
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { normalizeName } from '../../shared/names.js'
 import type { Chapter } from '../../shared/types.js'
+
+// By default tesseract.js fetches its English language model (~3MB) from
+// cdn.jsdelivr.net on every worker creation -- fine on a long-running
+// server, but a real cost on Vercel: a cold function pays that network
+// round-trip (DNS + TLS + transfer) before OCR can even start, on top of
+// the OCR itself, and every application upload creates 2-4 separate
+// workers (parse-for-preview, then letters/fees/essay once the doc is
+// actually uploaded). tessdata/eng.traineddata.gz (bundled via vercel.json
+// includeFiles) lets each worker load it from local disk instead -- no
+// network call at all. TESSERACT_LANG_PATH overrides this if ever needed
+// (e.g. pointing at a different self-hosted copy); otherwise it's automatic.
+// Resolved relative to this file's own location, which differs depending on
+// how it's running: two levels up from the unbundled source (src/lib/), but
+// only one level up from the esbuild-bundled production output (api/
+// handler.js -- see package.json build:api). Trying both rather than
+// hardcoding one keeps this correct in both without the build needing to
+// know anything about it.
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const BUNDLED_TESSDATA_DIR = [path.join(__dirname, '../tessdata'), path.join(__dirname, '../../tessdata')].find((dir) =>
+  existsSync(path.join(dir, 'eng.traineddata.gz'))
+)
+const DEFAULT_LANG_PATH = process.env.TESSERACT_LANG_PATH || BUNDLED_TESSDATA_DIR
+
+function workerOptions() {
+  // cachePath separate from langPath: langPath is the bundled, read-only
+  // copy; /tmp is the one writable location in a Vercel function, so a
+  // warm container that reuses the same instance can skip the gunzip on
+  // every subsequent worker too (a failed write here -- e.g. running
+  // somewhere /tmp isn't available -- is caught internally by tesseract.js
+  // and just means no cross-call caching, not a broken worker).
+  return DEFAULT_LANG_PATH ? { langPath: DEFAULT_LANG_PATH, cachePath: '/tmp', gzip: true } : undefined
+}
 
 export interface ParsedApplicationFields {
   id?: string
@@ -230,8 +265,7 @@ export async function extractLetterTexts(pdfBytes: Uint8Array): Promise<Extracte
   const pageIndex = 4
   if (pageIndex >= pageCount) return {}
 
-  const langPath = process.env.TESSERACT_LANG_PATH
-  const worker = await createWorker('eng', 1, langPath ? { langPath, cachePath: langPath, gzip: true } : undefined)
+  const worker = await createWorker('eng', 1, workerOptions())
   try {
     const png = await renderPageToPNG(doc, pageIndex)
     const { data } = await worker.recognize(Buffer.from(png))
@@ -274,8 +308,7 @@ const MEMBERSHIP_FEES_RE = /Membership Fees\s*\(?\s*Bal(?:ance)?:?\s*\$?\s*([\d,
 
 export async function extractMembershipFeesBalance(pdfBytes: Uint8Array): Promise<number | undefined> {
   const doc = mupdf.Document.openDocument(pdfBytes, 'application/pdf')
-  const langPath = process.env.TESSERACT_LANG_PATH
-  const worker = await createWorker('eng', 1, langPath ? { langPath, cachePath: langPath, gzip: true } : undefined)
+  const worker = await createWorker('eng', 1, workerOptions())
   try {
     const png = await renderPageToPNG(doc, 0)
     const { data } = await worker.recognize(Buffer.from(png))
@@ -293,8 +326,7 @@ export async function extractPdfText(pdfBytes: Uint8Array): Promise<string> {
   const doc = mupdf.Document.openDocument(pdfBytes, 'application/pdf')
   const pageCount = doc.countPages()
 
-  const langPath = process.env.TESSERACT_LANG_PATH
-  const worker = await createWorker('eng', 1, langPath ? { langPath, cachePath: langPath, gzip: true } : undefined)
+  const worker = await createWorker('eng', 1, workerOptions())
   try {
     const parts: string[] = []
     for (let i = 0; i < pageCount; i++) {
@@ -316,12 +348,7 @@ export async function parseApplicationFields(
   const doc = mupdf.Document.openDocument(pdfBytes, 'application/pdf')
   const pageCount = Math.min(doc.countPages(), 2)
 
-  // By default tesseract.js fetches its English language model from a CDN
-  // on first use per cold start. That's fine on Vercel (normal outbound
-  // internet access), but TESSERACT_LANG_PATH lets it be pointed at a
-  // self-hosted/bundled copy instead, if the CDN ever proves unreliable.
-  const langPath = process.env.TESSERACT_LANG_PATH
-  const worker = await createWorker('eng', 1, langPath ? { langPath, cachePath: langPath, gzip: true } : undefined)
+  const worker = await createWorker('eng', 1, workerOptions())
   try {
     const fields: ParsedApplicationFields = {}
     let combinedText = ''
