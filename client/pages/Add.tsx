@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Icon } from '../components/Brand'
 import { useApp } from '../context'
 import { api } from '../api'
+import type { PdfBatchRow } from '../../shared/types'
 
 function dataUrlToFile(dataUrl: string, filename: string): File {
   const [header, base64] = dataUrl.split(',')
@@ -16,7 +17,7 @@ function dataUrlToFile(dataUrl: string, filename: string): File {
 export default function Add() {
   const { officer } = useApp()
   const navigate = useNavigate()
-  const [mode, setMode] = useState<'manual' | 'csv'>('manual')
+  const [mode, setMode] = useState<'manual' | 'csv' | 'pdf-batch'>('manual')
 
   return (
     <div className="add-screen v-classic">
@@ -30,7 +31,7 @@ export default function Add() {
         <div>
           <div className="eyebrow">TCAC · Intake Committee</div>
           <h1 className="add-title">Add Candidate to Intake</h1>
-          <div className="add-sub">Enter one candidate manually or upload a CSV to onboard a full line at once. Uploaded documents can be attached after the record is created.</div>
+          <div className="add-sub">Enter one candidate manually, upload a CSV, or upload several applications combined into one PDF to onboard a full line at once.</div>
         </div>
       </div>
 
@@ -49,6 +50,13 @@ export default function Add() {
             <div className="add-mode-sub">Bulk-add candidates from a spreadsheet</div>
           </div>
         </button>
+        <button className={`add-mode-tab ${mode === 'pdf-batch' ? 'add-mode-tab-active' : ''}`} onClick={() => setMode('pdf-batch')}>
+          <div className="add-mode-icon"><Icon name="inbox" size={20} /></div>
+          <div className="add-mode-body">
+            <div className="add-mode-label">Bulk Application Upload</div>
+            <div className="add-mode-sub">One PDF with several applications combined</div>
+          </div>
+        </button>
       </div>
 
       {officer && officer.scope !== 'all' && (
@@ -58,7 +66,9 @@ export default function Add() {
         </div>
       )}
 
-      {mode === 'manual' ? <ManualForm onCandidateAdded={(id) => (id ? navigate(`/candidates/${id}`) : navigate('/roster'))} /> : <CSVUpload onCandidateAdded={() => navigate('/roster')} />}
+      {mode === 'manual' && <ManualForm onCandidateAdded={(id) => (id ? navigate(`/candidates/${id}`) : navigate('/roster'))} />}
+      {mode === 'csv' && <CSVUpload onCandidateAdded={() => navigate('/roster')} />}
+      {mode === 'pdf-batch' && <PDFBatchUpload onDone={() => navigate('/roster')} />}
     </div>
   )
 }
@@ -538,6 +548,157 @@ function CSVUpload({ onCandidateAdded }: { onCandidateAdded: () => void }) {
             <button className="btn-secondary" onClick={() => { setParsed(null); setCsvText('') }}>Cancel</button>
             <button className="btn-primary" onClick={importAll} disabled={willImport.length === 0 || busy}>
               <Icon name="check" size={13} /> Import {willImport.length} candidate{willImport.length === 1 ? '' : 's'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PDFBatchUpload({ onDone }: { onDone: () => void }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [rows, setRows] = useState<PdfBatchRow[] | null>(null)
+  const [pagesPerApplication, setPagesPerApplication] = useState(6)
+  const [dragOver, setDragOver] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState<{ created: number; skipped: { startPage: number; reason: string }[] } | null>(null)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  const handleFile = async (f: File | null | undefined) => {
+    if (!f) return
+    setError('')
+    setFile(f)
+    setBusy(true)
+    try {
+      const res = await api.pdfBatchPreview(f)
+      setRows(res.rows)
+      setPagesPerApplication(res.pagesPerApplication)
+    } catch (e: any) {
+      setError(e.message || 'Could not process this file.')
+      setFile(null)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const createAll = async () => {
+    if (!file) return
+    setBusy(true)
+    setError('')
+    try {
+      const res = await api.pdfBatchCommit(file)
+      setResult(res)
+    } catch (e: any) {
+      setError(e.message || 'Could not create candidates from this file.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (result) {
+    return (
+      <div className="add-success">
+        <div className="add-success-icon"><Icon name="check" size={40} /></div>
+        <div className="add-success-title">Bulk Upload Complete</div>
+        <div className="add-success-name">{result.created} candidate{result.created === 1 ? '' : 's'} added</div>
+        <div className="add-success-msg">
+          Each one has its own split application attached, with sponsor/recommender letters and fees balance parsed the same as a single upload.
+        </div>
+        {result.skipped.length > 0 && (
+          <div className="csv-errors" style={{ textAlign: 'left', marginTop: 16 }}>
+            <div className="csv-errors-title">{result.skipped.length} packet{result.skipped.length === 1 ? '' : 's'} skipped</div>
+            <ul>
+              {result.skipped.map((s, i) => <li key={i}><b>Page {s.startPage + 1}:</b> {s.reason}</li>)}
+            </ul>
+          </div>
+        )}
+        <div className="add-success-actions">
+          <button className="btn-secondary" onClick={() => { setResult(null); setRows(null); setFile(null) }}>Upload another batch</button>
+          <button className="btn-primary" onClick={onDone}>Return to Roster <Icon name="chevron-right" size={12} /></button>
+        </div>
+      </div>
+    )
+  }
+
+  const willImport = rows?.filter((r) => r.willImport) || []
+  const duplicates = rows?.filter((r) => r.duplicate) || []
+  const outOfScope = rows?.filter((r) => r.outOfScope && !r.duplicate) || []
+  const errored = rows?.filter((r) => r.error) || []
+
+  return (
+    <div className="csv-panel">
+      <div className="csv-instructions">
+        <div className="csv-inst-title">How bulk application upload works</div>
+        <ol className="csv-inst-list">
+          <li>Combine several candidates' applications into one PDF, each one right after the other (e.g. merge the individual {pagesPerApplication}-page application PDFs in order).</li>
+          <li>Upload the combined file here — it's split back into one application per candidate automatically.</li>
+          <li>Review the preview below before anything is created.</li>
+        </ol>
+        <div className="csv-inst-fields">
+          Each application is assumed to be exactly <b>{pagesPerApplication} pages</b>, same as a single Application PDF upload. A packet the parser can't read (wrong page count, unrecognized layout) is flagged rather than guessed — add it individually afterward instead.
+        </div>
+      </div>
+
+      <div
+        className={`csv-dropzone ${dragOver ? 'csv-dropzone-over' : ''}`}
+        onDragOver={(e) => { e.preventDefault(); if (!busy) setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!busy) handleFile(e.dataTransfer.files[0]) }}
+        onClick={() => { if (!busy) inputRef.current?.click() }}
+      >
+        <input ref={inputRef} type="file" accept="application/pdf" style={{ display: 'none' }} disabled={busy} onChange={(e) => handleFile(e.target.files?.[0])} />
+        <div className="dz-icon">{busy ? <span className="dz-spinner" /> : <Icon name="inbox" size={40} />}</div>
+        <div className="dz-title">{busy ? 'Processing…' : 'Upload Combined Application PDF'}</div>
+        <div className="dz-drop-line">{busy ? 'This can take a while for a large batch' : <>Drag &amp; drop a PDF here, or <b>click to browse</b></>}</div>
+        <div className="dz-role">Preview shown before anything is created · Existing candidate IDs are skipped</div>
+      </div>
+
+      {error && <div className="ff-error" style={{ marginTop: 10 }}>{error}</div>}
+
+      {rows && (
+        <div className="csv-preview">
+          <div className="csv-preview-summary">
+            <div className="csv-summary-item csv-summary-ok"><div className="csv-summary-num">{willImport.length}</div><div className="csv-summary-label">Ready to import</div></div>
+            {duplicates.length > 0 && <div className="csv-summary-item csv-summary-warn"><div className="csv-summary-num">{duplicates.length}</div><div className="csv-summary-label">Duplicate IDs · skipped</div></div>}
+            {outOfScope.length > 0 && <div className="csv-summary-item csv-summary-warn"><div className="csv-summary-num">{outOfScope.length}</div><div className="csv-summary-label">Outside your area · skipped</div></div>}
+            {errored.length > 0 && <div className="csv-summary-item csv-summary-error"><div className="csv-summary-num">{errored.length}</div><div className="csv-summary-label">Couldn't be read</div></div>}
+          </div>
+
+          {errored.length > 0 && (
+            <div className="csv-errors">
+              <div className="csv-errors-title">Packets that couldn't be read</div>
+              <ul>
+                {errored.map((r, i) => <li key={i}><b>Page {r.startPage + 1}:</b> {r.error}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {willImport.length > 0 && (
+            <div className="csv-table-wrap">
+              <table className="csv-table">
+                <thead><tr><th>ID</th><th>Name</th><th>Chapter</th><th>School</th><th>GPA</th><th>Headshot</th></tr></thead>
+                <tbody>
+                  {willImport.map((r, i) => (
+                    <tr key={i}>
+                      <td className="mono">{r.id}</td>
+                      <td><b>{r.name}</b><div className="csv-cell-sub">{r.email}</div></td>
+                      <td><b>{r.chapterName}</b></td>
+                      <td>{r.school}</td>
+                      <td className="mono">{r.gpa}</td>
+                      <td>{r.hasHeadshot ? <Icon name="check" size={14} /> : <span className="csv-cell-empty">— none found —</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="csv-preview-actions">
+            <button className="btn-secondary" onClick={() => { setRows(null); setFile(null) }}>Cancel</button>
+            <button className="btn-primary" onClick={createAll} disabled={willImport.length === 0 || busy}>
+              <Icon name="check" size={13} /> {busy ? 'Creating…' : `Create ${willImport.length} candidate${willImport.length === 1 ? '' : 's'}`}
             </button>
           </div>
         </div>

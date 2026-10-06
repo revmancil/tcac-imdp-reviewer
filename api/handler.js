@@ -1485,6 +1485,21 @@ function extractHeadshot(pdfBytes) {
   }
   return null;
 }
+function splitPdfIntoApplicationChunks(pdfBytes, pagesPerApplication) {
+  const srcDoc = mupdf.Document.openDocument(pdfBytes, "application/pdf");
+  const totalPages = srcDoc.countPages();
+  const chunks = [];
+  for (let start = 0; start < totalPages; start += pagesPerApplication) {
+    const end = Math.min(start + pagesPerApplication, totalPages);
+    const out = new mupdf.PDFDocument();
+    for (let i = start; i < end; i++) {
+      out.graftPage(i - start, srcDoc, i);
+    }
+    const view = out.saveToBuffer(void 0).asUint8Array();
+    chunks.push({ bytes: new Uint8Array(view), startPage: start, pageCount: end - start });
+  }
+  return chunks;
+}
 async function renderPageToPNG(doc, pageIndex, gamma) {
   const page = doc.loadPage(pageIndex);
   const matrix = mupdf.Matrix.scale(2, 2);
@@ -2279,6 +2294,221 @@ app.post("/candidates/parse-application", async (c) => {
     console.error("parse-application: headshot extraction failed", err);
   }
   return c.json({ fields, headshotDataUrl });
+});
+var MAX_BATCH_CANDIDATES = 10;
+var BATCH_FILE_SIZE_LIMIT = 60 * 1024 * 1024;
+function applicationPageCount() {
+  return REQUIRED_DOCS.find((d) => d.key === "application")?.pages || 6;
+}
+async function splitAndExtractBatch(bytes) {
+  const chunks = splitPdfIntoApplicationChunks(bytes, applicationPageCount());
+  if (chunks.length > MAX_BATCH_CANDIDATES) {
+    const err = new Error(
+      `This file would produce ${chunks.length} applications (at ${applicationPageCount()} pages each) -- please split it into batches of ${MAX_BATCH_CANDIDATES} or fewer and upload separately.`
+    );
+    err.status = 413;
+    throw err;
+  }
+  return Promise.all(
+    chunks.map(async (chunk) => {
+      let fields = {};
+      try {
+        fields = await parseApplicationFields(chunk.bytes, CHAPTERS);
+      } catch (err) {
+        console.error("pdf-batch: field extraction failed", err);
+      }
+      let headshotDataUrl = null;
+      try {
+        const headshot = extractHeadshot(chunk.bytes);
+        if (headshot) headshotDataUrl = `data:${headshot.contentType};base64,${Buffer.from(headshot.bytes).toString("base64")}`;
+      } catch (err) {
+        console.error("pdf-batch: headshot extraction failed", err);
+      }
+      return { startPage: chunk.startPage, pageCount: chunk.pageCount, pdfBytes: chunk.bytes, fields, headshotDataUrl };
+    })
+  );
+}
+function batchRowIssue(fields, name) {
+  if (!fields.id) return "Could not read a candidate ID from this packet";
+  if (!fields.chapterKey || !CHAPTERS[fields.chapterKey]) return "Could not detect a chapter";
+  if (!name.trim()) return "Could not read a name";
+  return void 0;
+}
+app.post("/candidates/pdf-batch/preview", async (c) => {
+  const officer = await currentOfficer(c);
+  const denied = requireOfficer(c, officer);
+  if (denied) return denied;
+  const form = await c.req.formData();
+  const file = form.get("file");
+  if (!(file instanceof File)) return c.json({ error: "No file provided" }, 400);
+  if (file.size > BATCH_FILE_SIZE_LIMIT) return c.json({ error: "File exceeds 60 MB limit" }, 413);
+  let extracted;
+  try {
+    extracted = await splitAndExtractBatch(new Uint8Array(await file.arrayBuffer()));
+  } catch (err) {
+    return c.json({ error: err.message || "Could not process this file" }, err.status || 400);
+  }
+  const rows = await Promise.all(
+    extracted.map(async ({ startPage, pageCount, fields, headshotDataUrl }) => {
+      const name = [fields.firstName, fields.middleName, fields.lastName].filter(Boolean).join(" ");
+      const chapter = fields.chapterKey ? CHAPTERS[fields.chapterKey] : void 0;
+      const issue = batchRowIssue(fields, name);
+      const duplicate = !issue && await candidateExists(fields.id);
+      const outOfScope = !issue && chapter ? !officerCanSeeArea(officer, chapter.area) : false;
+      return {
+        startPage,
+        pageCount,
+        id: fields.id,
+        name,
+        email: fields.email,
+        chapterKey: fields.chapterKey,
+        chapterName: chapter?.name,
+        school: fields.school,
+        gpa: fields.gpa,
+        hasHeadshot: !!headshotDataUrl,
+        error: issue,
+        duplicate,
+        outOfScope,
+        willImport: !issue && !duplicate && !outOfScope
+      };
+    })
+  );
+  return c.json({ rows, pagesPerApplication: applicationPageCount() });
+});
+function toArrayBuffer(u) {
+  return u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength);
+}
+async function attachApplicationPdf(candidate, pdfBytes, filename, officer) {
+  let bytes = pdfBytes;
+  try {
+    const result = await redactSensitiveInfo(pdfBytes);
+    bytes = result.bytes;
+  } catch (err) {
+    console.error("pdf-batch: SSN redaction failed, storing original file", err);
+  }
+  const key = `candidates/${candidate.id}/application/${Date.now()}-${filename.replace(/[^a-zA-Z0-9_.-]/g, "_")}`;
+  await putFile(key, toArrayBuffer(bytes), "application/pdf");
+  await updateCandidateDoc(candidate.id, "application", {
+    present: true,
+    valid: true,
+    note: `Uploaded ${filename} \xB7 ${(pdfBytes.byteLength / 1024).toFixed(0)} KB`,
+    file: `/api/files/${key}`,
+    uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
+  });
+  const fields = {};
+  const workflowUpdates = { appSubmitted: { done: true } };
+  try {
+    const [{ sponsorName, sponsorLetter, recommenderName, recommenderLetter }, feesBalance] = await Promise.all([
+      extractLetterTexts(pdfBytes),
+      extractMembershipFeesBalance(pdfBytes)
+    ]);
+    const attachLetter = (existing, name, letter, role) => {
+      if (!letter) return void 0;
+      if (existing) return { ...existing, letter };
+      if (!name) return void 0;
+      return { name, chapter: "Pending confirmation", role: "Chapter Brother", email: "", phone: "", relationship: `${role} \xB7 Chapter Brother`, letter };
+    };
+    const sponsor = attachLetter(candidate.sponsor, sponsorName, sponsorLetter, "Sponsor");
+    const recommender = attachLetter(candidate.recommender, recommenderName, recommenderLetter, "Recommender");
+    if (sponsor) {
+      fields.sponsor = sponsor;
+      workflowUpdates.sponsorAssigned = { done: true, value: `${sponsor.name} \xB7 ${countWords(sponsor.letter)} words` };
+    }
+    if (recommender) {
+      fields.recommender = recommender;
+      workflowUpdates.recommenderAssigned = { done: true, value: `${recommender.name} \xB7 ${countWords(recommender.letter)} words` };
+    }
+    if (feesBalance !== void 0) {
+      workflowUpdates.membershipFees = { done: feesBalance === 0, value: `Balance: $${feesBalance.toFixed(2)}` };
+    }
+  } catch (err) {
+    console.error("pdf-batch: letters/fees extraction failed", err);
+  }
+  fields.workflow = { ...candidate.workflow, ...workflowUpdates };
+  await updateCandidateFields(candidate.id, fields);
+  await logAudit(candidate.id, officer.id, "doc_upload", `application by ${officer.name} (bulk PDF upload)`);
+}
+async function attachHeadshotFromDataUrl(candidateId, headshotDataUrl, officer) {
+  const match = headshotDataUrl.match(/^data:([^;]+);base64,(.*)$/);
+  if (!match) return;
+  const [, contentType, base64] = match;
+  const ext = contentType === "image/png" ? "png" : "jpg";
+  const key = `candidates/${candidateId}/headshot/${Date.now()}-headshot.${ext}`;
+  await putFile(key, toArrayBuffer(Buffer.from(base64, "base64")), contentType);
+  await updateCandidateDoc(candidateId, "headshot", {
+    present: true,
+    valid: true,
+    note: "Extracted from application PDF",
+    file: `/api/files/${key}`,
+    uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
+  });
+  await logAudit(candidateId, officer.id, "doc_upload", `headshot by ${officer.name} (bulk PDF upload)`);
+}
+app.post("/candidates/pdf-batch/commit", async (c) => {
+  const officer = await currentOfficer(c);
+  const denied = requireOfficer(c, officer);
+  if (denied) return denied;
+  const form = await c.req.formData();
+  const file = form.get("file");
+  if (!(file instanceof File)) return c.json({ error: "No file provided" }, 400);
+  if (file.size > BATCH_FILE_SIZE_LIMIT) return c.json({ error: "File exceeds 60 MB limit" }, 413);
+  let extracted;
+  try {
+    extracted = await splitAndExtractBatch(new Uint8Array(await file.arrayBuffer()));
+  } catch (err) {
+    return c.json({ error: err.message || "Could not process this file" }, err.status || 400);
+  }
+  let created = 0;
+  const skipped = [];
+  for (const { startPage, pdfBytes, fields, headshotDataUrl } of extracted) {
+    const name = [fields.firstName, fields.middleName, fields.lastName].filter(Boolean).join(" ");
+    const issue = batchRowIssue(fields, name);
+    if (issue) {
+      skipped.push({ startPage, reason: issue });
+      continue;
+    }
+    const chapter = CHAPTERS[fields.chapterKey];
+    if (!officerCanSeeArea(officer, chapter.area)) {
+      skipped.push({ startPage, reason: "That chapter is outside your area of responsibility" });
+      continue;
+    }
+    if (await candidateExists(fields.id)) {
+      skipped.push({ startPage, reason: `Candidate #${fields.id} already exists` });
+      continue;
+    }
+    const candidate = makeCandidate({
+      id: fields.id,
+      name,
+      email: fields.email || "",
+      phone: fields.phone || "",
+      address: fields.address || "",
+      dob: fields.dob || "",
+      school: fields.school || "",
+      major: fields.major || "",
+      classification: fields.classification || "Undergraduate",
+      gpa: fields.gpa || 0,
+      gradDate: fields.gradDate || "",
+      chapterKey: fields.chapterKey,
+      sponsorName: fields.sponsorName || "",
+      recommenderName: fields.recommenderName || ""
+    });
+    await insertCandidate(candidate);
+    created++;
+    await logAudit(candidate.id, officer.id, "create", `Added via bulk PDF upload by ${officer.name}`);
+    try {
+      await attachApplicationPdf(candidate, pdfBytes, `${candidate.id}-application.pdf`, officer);
+    } catch (err) {
+      console.error("pdf-batch: failed to attach application doc", err);
+    }
+    if (headshotDataUrl) {
+      try {
+        await attachHeadshotFromDataUrl(candidate.id, headshotDataUrl, officer);
+      } catch (err) {
+        console.error("pdf-batch: failed to attach headshot", err);
+      }
+    }
+  }
+  return c.json({ created, skipped });
 });
 app.post("/candidates", async (c) => {
   const officer = await currentOfficer(c);

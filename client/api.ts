@@ -1,5 +1,5 @@
 // Thin fetch wrapper for the TCAC Intake Review API.
-import type { AdminOfficerRow, Candidate, OfficerPublic, ReferenceData } from '../shared/types'
+import type { AdminOfficerRow, Candidate, OfficerPublic, PdfBatchRow, ReferenceData } from '../shared/types'
 
 async function req<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
   const { timeoutMs, ...rest } = init || {}
@@ -93,5 +93,17 @@ export const api = {
     // clean server-side timeout error wins the race, but guarantee this
     // never hangs the UI indefinitely if the connection doesn't close cleanly.
     return req<{ fields: Record<string, string>; headshotDataUrl: string | null }>('/api/candidates/parse-application', { method: 'POST', body: form, timeoutMs: 90_000 })
+  },
+  pdfBatchPreview: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    // Same maxDuration headroom as parseApplication -- a batch costs more
+    // OCR passes, so give it the same margin above the 60s server limit.
+    return req<{ rows: PdfBatchRow[]; pagesPerApplication: number }>('/api/candidates/pdf-batch/preview', { method: 'POST', body: form, timeoutMs: 90_000 })
+  },
+  pdfBatchCommit: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return req<{ created: number; skipped: { startPage: number; reason: string }[] }>('/api/candidates/pdf-batch/commit', { method: 'POST', body: form, timeoutMs: 90_000 })
   },
 }

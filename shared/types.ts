@@ -38,6 +38,25 @@ export interface AdminOfficerRow {
   failedAttempts: number;
 }
 
+// Row shape returned by /api/candidates/pdf-batch/preview -- one per
+// detected application inside the combined PDF.
+export interface PdfBatchRow {
+  startPage: number;
+  pageCount: number;
+  id?: string;
+  name: string;
+  email?: string;
+  chapterKey?: string;
+  chapterName?: string;
+  school?: string;
+  gpa?: string;
+  hasHeadshot: boolean;
+  error?: string;
+  duplicate: boolean;
+  outOfScope: boolean;
+  willImport: boolean;
+}
+
 export type StatusKey = 'received' | 'review' | 'missing' | 'complete' | 'cleared';
 export type StatusTone = 'neutral' | 'info' | 'warn' | 'ok' | 'gold';
 

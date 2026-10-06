@@ -128,6 +128,50 @@ export function extractHeadshot(pdfBytes: Uint8Array): ExtractedHeadshot | null 
 }
 
 // ---------------------------------------------------------------------------
+// Batch upload -- splits one combined PDF (several applications concatenated
+// back-to-back) into standalone per-application PDFs, one per fixed-size
+// page window. Each application is always `pagesPerApplication` pages (see
+// REQUIRED_DOCS['application'].pages in shared/reference.ts) in every real
+// sample seen -- the same assumption extractLetterTexts/
+// extractMembershipFeesBalance already make about a single application's
+// own internal layout (e.g. the letters living on "page 5"). A combined PDF
+// whose page count isn't a clean multiple of it still produces a trailing
+// short chunk rather than silently dropping pages; that chunk's own field
+// extraction will come up short (no ID found, etc.) and the caller's normal
+// per-row error handling surfaces it for review rather than guessing.
+// ---------------------------------------------------------------------------
+
+export interface PdfChunk {
+  bytes: Uint8Array
+  startPage: number
+  pageCount: number
+}
+
+export function splitPdfIntoApplicationChunks(pdfBytes: Uint8Array, pagesPerApplication: number): PdfChunk[] {
+  const srcDoc = mupdf.Document.openDocument(pdfBytes, 'application/pdf') as mupdf.PDFDocument
+  const totalPages = srcDoc.countPages()
+  const chunks: PdfChunk[] = []
+  for (let start = 0; start < totalPages; start += pagesPerApplication) {
+    const end = Math.min(start + pagesPerApplication, totalPages)
+    const out = new mupdf.PDFDocument()
+    for (let i = start; i < end; i++) {
+      out.graftPage(i - start, srcDoc, i)
+    }
+    // .asUint8Array() is a view into mupdf's WASM heap, not an independent
+    // copy -- it goes stale (byteLength 0, "detached ArrayBuffer") the next
+    // time that WASM memory grows, which any later mupdf call (the next
+    // chunk's own graftPage/saveToBuffer, or this chunk's own OCR pass
+    // re-opening it) can trigger. Copy it out now, while it's still valid,
+    // so each chunk is a real, independent buffer the caller can hold onto
+    // and reuse (e.g. parseApplicationFields then extractHeadshot on the
+    // same bytes) without it dying out from under them.
+    const view = out.saveToBuffer(undefined).asUint8Array()
+    chunks.push({ bytes: new Uint8Array(view), startPage: start, pageCount: end - start })
+  }
+  return chunks
+}
+
+// ---------------------------------------------------------------------------
 // Field extraction via OCR -- render the first couple of pages (everything
 // we need lives there) and read the text line-by-line.
 // ---------------------------------------------------------------------------
