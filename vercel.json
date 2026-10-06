@@ -4,10 +4,7 @@
   "outputDirectory": "public",
   "functions": {
     "api/handler.js": {
-      "includeFiles": [
-        "node_modules/{mupdf,tesseract.js-core}/**",
-        "tessdata/**"
-      ]
+      "includeFiles": "{node_modules/mupdf,node_modules/tesseract.js-core,tessdata}/**"
     }
   },
   "rewrites": [
