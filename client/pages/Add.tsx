@@ -600,6 +600,7 @@ function OneAtATimeUpload({ onDone }: { onDone: () => void }) {
   const [dragOver, setDragOver] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [summary, setSummary] = useState<{ created: number; failed: number } | null>(null)
+  const [addError, setAddError] = useState('')
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   // Items are matched by a stable id (not array position) on every update
@@ -611,9 +612,24 @@ function OneAtATimeUpload({ onDone }: { onDone: () => void }) {
 
   const addFiles = (fileList: FileList | File[] | null | undefined) => {
     if (!fileList) return
-    const incoming = Array.from(fileList).filter((f) => f.type === 'application/pdf')
+    setAddError('')
+    const all = Array.from(fileList)
+    // file.type comes from the browser sniffing the file and is unreliable
+    // for PDFs from some scanners/exports/cloud downloads (often comes back
+    // empty) -- the extension is a far more reliable signal, so only fall
+    // back to rejecting on MIME type if the name itself isn't a .pdf.
+    const incoming = all.filter((f) => f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf')
+    const notPdf = all.length - incoming.length
     const room = MAX_BATCH - items.length
     const toAdd = incoming.slice(0, room)
+    const overCapacity = incoming.length - toAdd.length
+
+    if (notPdf > 0 || overCapacity > 0) {
+      const parts: string[] = []
+      if (notPdf > 0) parts.push(`${notPdf} file${notPdf === 1 ? " wasn't" : 's were'} not a PDF`)
+      if (overCapacity > 0) parts.push(`${overCapacity} skipped -- batch limit is ${MAX_BATCH}`)
+      setAddError(parts.join('; ') + '.')
+    }
     if (toAdd.length === 0) return
 
     const newItems: TrayItem[] = toAdd.map((file) => ({ id: ++trayItemSeq, file, fields: {}, headshotDataUrl: null, status: 'parsing' }))
@@ -707,6 +723,8 @@ function OneAtATimeUpload({ onDone }: { onDone: () => void }) {
         <div className="dz-drop-line">{atCapacity ? 'Submit or remove one to add another' : <>Drag &amp; drop one or more PDFs, or <b>click to browse</b></>}</div>
         <div className="dz-role">{items.length} of {MAX_BATCH} added</div>
       </div>
+
+      {addError && <div className="ff-error" style={{ marginTop: 10 }}>{addError}</div>}
 
       {items.length > 0 && (
         <div className="csv-preview">
